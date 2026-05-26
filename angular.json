@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "polymarket-dashboard": {
+    "poly-roly": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -41,8 +41,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "10kB",
-                  "maximumError": "14kB"
+                  "maximumWarning": "12kB",
+                  "maximumError": "16kB"
                 }
               ],
               "outputHashing": "all"
@@ -59,10 +59,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "polymarket-dashboard:build:production"
+              "buildTarget": "poly-roly:build:production"
             },
             "development": {
-              "buildTarget": "polymarket-dashboard:build:development"
+              "buildTarget": "poly-roly:build:development"
             }
           },
           "defaultConfiguration": "development"

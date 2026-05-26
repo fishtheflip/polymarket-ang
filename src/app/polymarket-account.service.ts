@@ -53,11 +53,15 @@ export type PolymarketTrade = {
   timestamp?: number;
   title?: string;
   slug?: string;
+  eventSlug?: string;
   side?: string;
   outcome?: string;
   price?: number;
   size?: number;
   usdcSize?: number;
+  name?: string;
+  pseudonym?: string;
+  profileImage?: string;
   transactionHash?: string;
 };
 
@@ -109,6 +113,13 @@ export class PolymarketAccountService {
     return this.getJson<PolymarketTrade[]>(`${this.dataApi}/trades`, {
       user: address,
       limit: '25',
+      offset: '0',
+    });
+  }
+
+  getRecentTrades(limit = 200): Promise<PolymarketTrade[]> {
+    return this.getJson<PolymarketTrade[]>(`${this.dataApi}/trades`, {
+      limit: String(limit),
       offset: '0',
     });
   }

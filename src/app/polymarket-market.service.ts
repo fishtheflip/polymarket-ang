@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 export type GammaMarket = {
   id: string;
   question: string;
+  slug?: string;
   outcomes: string;
   outcomePrices: string;
   volume?: string;

@@ -20,6 +20,9 @@ import {
 import { I18nService, Language } from './i18n.service';
 import { GammaMarket, PolymarketMarketService } from './polymarket-market.service';
 
+type ThemeMode = 'light' | 'dark';
+type WhaleFeedMode = 'large' | 'risky';
+
 type DonutSegment = {
   label: string;
   value: number;
@@ -49,32 +52,12 @@ type DonutChart = {
 type MarketOverviewRow = {
   title: string;
   category: string;
+  url: string | null;
   probability: number;
   volume: string;
   detail: string;
   side: string;
   liquidity: number;
-};
-
-type WhaleAccount = {
-  address: string;
-  profile: PolymarketProfile | null;
-  positions: PolymarketPosition[];
-  trades: PolymarketTrade[];
-  value: number | null;
-  error: string | null;
-  loadedAt: number;
-};
-
-type WhaleRow = {
-  address: string;
-  name: string;
-  currentValue: number;
-  openPnl: number;
-  openPositions: number;
-  trades: number;
-  topMarket: string;
-  loadedAt: number;
 };
 
 type WhaleMovement = {
@@ -83,9 +66,10 @@ type WhaleMovement = {
   title: string;
   detail: string;
   value: number;
+  price: number;
   timestamp: number | null;
-  isLarge: boolean;
   isNegative: boolean;
+  url: string | null;
 };
 
 @Component({
@@ -122,13 +106,15 @@ export class App implements OnInit {
   protected readonly marketOverviewLoading = signal(false);
   protected readonly marketOverviewError = signal<string | null>(null);
   protected readonly marketOverviewMarkets = signal<GammaMarket[]>([]);
-  protected readonly whaleAddress = signal('');
   protected readonly whaleLoading = signal(false);
   protected readonly whaleError = signal<string | null>(null);
-  protected readonly whaleAccounts = signal<WhaleAccount[]>([]);
+  protected readonly whaleTrades = signal<PolymarketTrade[]>([]);
+  protected readonly copiedTraderAddress = signal<string | null>(null);
+  protected readonly themeMode = signal<ThemeMode>('dark');
+  protected readonly whaleFeedMode = signal<WhaleFeedMode>('large');
 
   protected readonly isValidAddress = computed(() => this.isAddress(this.accountAddress().trim()));
-  protected readonly isValidWhaleAddress = computed(() => this.isAddress(this.whaleAddress().trim()));
+  protected readonly isDarkTheme = computed(() => this.themeMode() === 'dark');
   protected readonly currentValue = computed(
     () => this.positionValue() ?? this.positions().reduce((total, position) => total + this.numberOrZero(position.currentValue), 0),
   );
@@ -173,6 +159,7 @@ export class App implements OnInit {
       return {
         title: market.question,
         category: this.marketCategory(market),
+        url: this.marketUrl(market),
         probability,
         volume: this.formatCompactCurrency(this.numberOrZero(market.volumeNum)),
         detail: `${this.formatCompactCurrency(this.numberOrZero(market.volume24hr))} 24h`,
@@ -233,65 +220,29 @@ export class App implements OnInit {
         value: market.detail,
       })),
   );
-  protected readonly whaleRows = computed((): WhaleRow[] =>
-    this.whaleAccounts().map((account) => ({
-      address: account.address,
-      name: account.profile?.name || account.profile?.pseudonym || this.shortAddress(account.address),
-      currentValue: account.value ?? account.positions.reduce((total, position) => total + this.numberOrZero(position.currentValue), 0),
-      openPnl: account.positions.reduce((total, position) => total + this.numberOrZero(position.cashPnl), 0),
-      openPositions: account.positions.length,
-      trades: account.trades.length,
-      topMarket: account.positions[0]?.title || account.trades[0]?.title || '--',
-      loadedAt: account.loadedAt,
-    })),
-  );
-  protected readonly whaleStats = computed(() => {
-    const rows = this.whaleRows();
-    const totalValue = rows.reduce((total, row) => total + row.currentValue, 0);
-    const totalOpenPnl = rows.reduce((total, row) => total + row.openPnl, 0);
-
-    return [
-      { label: this.t('trackedWhales'), value: String(rows.length), delta: this.t('watchlist'), icon: 'radar' },
-      { label: this.t('whaleCapital'), value: this.formatCompactCurrency(totalValue), delta: this.t('currentValue'), icon: 'account_balance_wallet' },
-      { label: this.t('whaleOpenPnl'), value: this.formatCompactCurrency(totalOpenPnl), delta: this.t('openPnl'), icon: 'show_chart' },
-      { label: this.t('largeMovements'), value: String(this.whaleMovements().filter((move) => move.isLarge).length), delta: '>$500', icon: 'bolt' },
-    ];
-  });
   protected readonly whaleMovements = computed((): WhaleMovement[] => {
-    const tradeMovements = this.whaleAccounts().flatMap((account) =>
-      account.trades.map((trade) => {
-        const value = this.numberOrZero(trade.usdcSize);
-
-        return {
-          address: account.address,
-          name: account.profile?.name || account.profile?.pseudonym || this.shortAddress(account.address),
-          title: trade.title || trade.slug || 'Polymarket market',
-          detail: `${trade.side || 'Trade'} ${trade.outcome || ''} · ${this.formatPrice(trade.price)}`,
-          value,
-          timestamp: trade.timestamp ?? null,
-          isLarge: value >= 500,
-          isNegative: trade.side?.toLowerCase() === 'sell',
-        };
-      }),
-    );
-    const positionMovements = this.whaleAccounts().flatMap((account) =>
-      account.positions.slice(0, 4).map((position) => ({
-        address: account.address,
-        name: account.profile?.name || account.profile?.pseudonym || this.shortAddress(account.address),
-        title: position.title || position.slug || 'Polymarket market',
-        detail: `${position.outcome || this.t('position')} · ${position.size} shares`,
-        value: this.numberOrZero(position.currentValue),
-        timestamp: null,
-        isLarge: this.numberOrZero(position.currentValue) >= 500,
-        isNegative: this.numberOrZero(position.cashPnl) < 0,
-      })),
-    );
-
-    return [...tradeMovements, ...positionMovements]
+    return this.whaleTrades()
+      .map((trade) => this.tradeToWhaleMovement(trade))
       .filter((movement) => movement.value > 0)
-      .sort((a, b) => this.numberOrZero(b.timestamp) - this.numberOrZero(a.timestamp) || b.value - a.value)
-      .slice(0, 12);
+      .sort((a, b) => b.value - a.value || this.numberOrZero(b.timestamp) - this.numberOrZero(a.timestamp))
+      .slice(0, 10);
   });
+  protected readonly riskyWhaleMovements = computed((): WhaleMovement[] => {
+    return this.whaleTrades()
+      .map((trade) => this.tradeToWhaleMovement(trade))
+      .filter((movement) => movement.value > 0 && movement.price > 0 && movement.price <= 0.25)
+      .sort((a, b) => b.value - a.value || a.price - b.price || this.numberOrZero(b.timestamp) - this.numberOrZero(a.timestamp))
+      .slice(0, 10);
+  });
+  protected readonly selectedWhaleMovements = computed(() =>
+    this.whaleFeedMode() === 'risky' ? this.riskyWhaleMovements() : this.whaleMovements(),
+  );
+  protected readonly selectedWhaleFeedTitle = computed(() =>
+    this.whaleFeedMode() === 'risky' ? this.t('riskyWhaleFeed') : this.t('whaleFeed'),
+  );
+  protected readonly selectedWhaleFeedSubtitle = computed(() =>
+    this.whaleFeedMode() === 'risky' ? this.t('riskyWhaleFeedSubtitle') : this.t('whaleFeedSubtitle'),
+  );
 
   constructor(
     private readonly accountApi: PolymarketAccountService,
@@ -301,6 +252,7 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     void this.loadMarketOverview();
+    void this.loadWhaleTrades();
   }
 
   protected t(key: Parameters<I18nService['t']>[0]): string {
@@ -309,6 +261,14 @@ export class App implements OnInit {
 
   protected setLanguage(language: Language): void {
     this.i18n.setLanguage(language);
+  }
+
+  protected toggleTheme(): void {
+    this.themeMode.update((theme) => (theme === 'dark' ? 'light' : 'dark'));
+  }
+
+  protected setWhaleFeedMode(mode: WhaleFeedMode): void {
+    this.whaleFeedMode.set(mode);
   }
 
   protected async loadAccount(): Promise<void> {
@@ -361,43 +321,12 @@ export class App implements OnInit {
     }
   }
 
-  protected async addWhale(): Promise<void> {
-    const address = this.whaleAddress().trim();
-
-    if (!this.isAddress(address)) {
-      this.whaleError.set(this.t('useValidAddress'));
-      return;
-    }
-
-    if (this.whaleAccounts().some((account) => account.address.toLowerCase() === address.toLowerCase())) {
-      this.whaleError.set(this.t('whaleAlreadyTracked'));
-      return;
-    }
-
+  protected async loadWhaleTrades(): Promise<void> {
     this.whaleLoading.set(true);
     this.whaleError.set(null);
 
     try {
-      const [profile, positions, trades, value] = await Promise.all([
-        this.resolveOrDefault(this.accountApi.getProfile(address), null),
-        this.resolveOrDefault(this.accountApi.getPositions(address), []),
-        this.resolveOrDefault(this.accountApi.getTrades(address), []),
-        this.resolveOrDefault(this.accountApi.getPositionValue(address), null),
-      ]);
-
-      this.whaleAccounts.update((accounts) => [
-        {
-          address,
-          profile,
-          positions,
-          trades,
-          value,
-          error: null,
-          loadedAt: Date.now(),
-        },
-        ...accounts,
-      ]);
-      this.whaleAddress.set('');
+      this.whaleTrades.set(await this.accountApi.getRecentTrades(250));
     } catch (error) {
       this.whaleError.set(error instanceof Error ? error.message : 'Could not load whale data.');
     } finally {
@@ -405,8 +334,28 @@ export class App implements OnInit {
     }
   }
 
-  protected removeWhale(address: string): void {
-    this.whaleAccounts.update((accounts) => accounts.filter((account) => account.address !== address));
+  protected async copyTraderAddress(address: string): Promise<void> {
+    if (!address) {
+      return;
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(address);
+      } else {
+        this.copyTextFallback(address);
+      }
+      this.copiedTraderAddress.set(address);
+      this.whaleError.set(null);
+    } catch {
+      try {
+        this.copyTextFallback(address);
+        this.copiedTraderAddress.set(address);
+        this.whaleError.set(null);
+      } catch {
+        this.whaleError.set(this.t('copyFailed'));
+      }
+    }
   }
 
   protected topPositions(): PolymarketPosition[] {
@@ -480,6 +429,16 @@ export class App implements OnInit {
     return value.toFixed(3);
   }
 
+  protected formatNumber(value: number | null | undefined): string {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return '--';
+    }
+
+    return new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 2,
+    }).format(value);
+  }
+
   protected formatDate(value: number | string | null | undefined): string {
     if (!value) {
       return '--';
@@ -522,6 +481,45 @@ export class App implements OnInit {
     return typeof value === 'number' && !Number.isNaN(value) ? value : 0;
   }
 
+  private tradeValue(trade: PolymarketTrade): number {
+    return this.numberOrZero(trade.usdcSize) || this.numberOrZero(trade.size) * this.numberOrZero(trade.price);
+  }
+
+  private tradeToWhaleMovement(trade: PolymarketTrade): WhaleMovement {
+    const value = this.tradeValue(trade);
+    const address = trade.proxyWallet ?? '';
+
+    return {
+      address,
+      name: trade.name || trade.pseudonym || this.shortAddress(address),
+      title: trade.title || trade.slug || 'Polymarket market',
+      detail: `${trade.side || 'Trade'} ${trade.outcome || ''} · ${this.formatPrice(trade.price)} · ${this.formatNumber(trade.size)} shares`,
+      value,
+      price: this.numberOrZero(trade.price),
+      timestamp: trade.timestamp ?? null,
+      isNegative: trade.side?.toLowerCase() === 'sell',
+      url: this.polymarketUrl(trade.slug),
+    };
+  }
+
+  private copyTextFallback(value: string): void {
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    if (!copied) {
+      throw new Error('Copy command failed.');
+    }
+  }
+
   private parseStringArray(value: string): string[] {
     try {
       const parsed = JSON.parse(value);
@@ -538,6 +536,14 @@ export class App implements OnInit {
       market.events?.[0]?.category ||
       'Other'
     );
+  }
+
+  private marketUrl(market: GammaMarket): string | null {
+    return market.slug ? `https://polymarket.com/market/${market.slug}` : null;
+  }
+
+  private polymarketUrl(slug: string | null | undefined): string | null {
+    return slug ? `https://polymarket.com/market/${slug}` : null;
   }
 
   private async resolveOrDefault<T>(promise: Promise<T>, fallback: T): Promise<T> {

@@ -1,30 +1,43 @@
-<div class="layout">
+<div class="layout" [class.dark-theme]="isDarkTheme()">
   <mat-toolbar class="toolbar">
     <div class="toolbar-brand">
       <span class="brand-mark">P</span>
       <div>
-        <span class="section-label">Polymarket analytics</span>
+        <span class="section-label">{{ t('analyticsTerminal') }}</span>
         <h1>{{ t('predictionDashboard') }}</h1>
       </div>
     </div>
 
-    <div class="language-toggle" aria-label="Language">
+    <div class="toolbar-actions">
       <button
-        mat-button
+        mat-icon-button
+        class="theme-toggle"
         type="button"
-        [class.active-language]="i18n.language() === 'ru'"
-        (click)="setLanguage('ru')"
+        [attr.aria-label]="t('toggleTheme')"
+        [attr.title]="isDarkTheme() ? t('lightTheme') : t('darkTheme')"
+        (click)="toggleTheme()"
       >
-        RU
+        <mat-icon>{{ isDarkTheme() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
-      <button
-        mat-button
-        type="button"
-        [class.active-language]="i18n.language() === 'en'"
-        (click)="setLanguage('en')"
-      >
-        EN
-      </button>
+
+      <div class="language-toggle" aria-label="Language">
+        <button
+          mat-button
+          type="button"
+          [class.active-language]="i18n.language() === 'ru'"
+          (click)="setLanguage('ru')"
+        >
+          RU
+        </button>
+        <button
+          mat-button
+          type="button"
+          [class.active-language]="i18n.language() === 'en'"
+          (click)="setLanguage('en')"
+        >
+          EN
+        </button>
+      </div>
     </div>
   </mat-toolbar>
 
@@ -357,7 +370,22 @@
                       <mat-chip-set aria-label="Market category">
                         <mat-chip>{{ market.category }}</mat-chip>
                       </mat-chip-set>
-                      <h2>{{ market.title }}</h2>
+                      <h2>
+                        @if (market.url) {
+                          <a
+                            class="market-link"
+                            [href]="market.url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            [attr.aria-label]="t('openOnPolymarket') + ': ' + market.title"
+                          >
+                            {{ market.title }}
+                            <mat-icon>open_in_new</mat-icon>
+                          </a>
+                        } @else {
+                          {{ market.title }}
+                        }
+                      </h2>
                       <p>{{ market.volume }} total · {{ market.detail }}</p>
                       <mat-progress-bar mode="determinate" [value]="market.liquidity"></mat-progress-bar>
                     </div>
@@ -421,156 +449,93 @@
 
       <mat-tab [label]="t('whales')">
         <section class="tab-panel">
-          <mat-card class="account-card" appearance="outlined">
+          <mat-card class="whale-feed-card" appearance="outlined">
             <mat-card-header>
-              <mat-card-title>{{ t('whalesTitle') }}</mat-card-title>
-              <mat-card-subtitle>{{ t('whalesSubtitle') }}</mat-card-subtitle>
-            </mat-card-header>
-
-            <mat-card-content>
-              <div class="account-form">
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('walletAddress') }}</mat-label>
-                  <input
-                    matInput
-                    [value]="whaleAddress()"
-                    placeholder="0x..."
-                    spellcheck="false"
-                    (input)="whaleAddress.set($any($event.target).value)"
-                    (keyup.enter)="addWhale()"
-                  />
-                  <mat-hint>{{ t('whaleAddressHint') }}</mat-hint>
-                </mat-form-field>
-
+              <mat-card-title>{{ selectedWhaleFeedTitle() }}</mat-card-title>
+              <mat-card-subtitle>{{ selectedWhaleFeedSubtitle() }}</mat-card-subtitle>
+              <div class="feed-mode-toggle" role="group" [attr.aria-label]="t('whales')">
                 <button
-                  mat-flat-button
-                  color="primary"
                   type="button"
-                  [disabled]="whaleLoading() || !isValidWhaleAddress()"
-                  (click)="addWhale()"
+                  [class.active-feed-mode]="whaleFeedMode() === 'large'"
+                  (click)="setWhaleFeedMode('large')"
                 >
-                  <mat-icon>{{ whaleLoading() ? 'hourglass_top' : 'radar' }}</mat-icon>
-                  {{ whaleLoading() ? t('loading') : t('loadAnalytics') }}
+                  {{ t('whaleFeedLargeMode') }}
+                </button>
+                <button
+                  type="button"
+                  [class.active-feed-mode]="whaleFeedMode() === 'risky'"
+                  (click)="setWhaleFeedMode('risky')"
+                >
+                  {{ t('whaleFeedRiskyMode') }}
                 </button>
               </div>
+              <button
+                class="compact-icon-button refresh-trades-button"
+                type="button"
+                [disabled]="whaleLoading()"
+                [attr.aria-label]="t('refreshWhaleTrades')"
+                [attr.title]="t('refreshWhaleTrades')"
+                (click)="loadWhaleTrades()"
+              >
+                <mat-icon>{{ whaleLoading() ? 'hourglass_top' : 'refresh' }}</mat-icon>
+              </button>
+            </mat-card-header>
 
+            <mat-card-content class="whale-feed large-trade-feed">
               @if (whaleError()) {
                 <div class="account-error">
                   <mat-icon>error</mat-icon>
                   <span>{{ whaleError() }}</span>
                 </div>
+              } @else if (selectedWhaleMovements().length) {
+                @for (move of selectedWhaleMovements(); track move.address + move.title + move.detail + move.value) {
+                  <article class="whale-move">
+                    <mat-icon [class.negative-value]="move.isNegative">
+                      {{ move.isNegative ? 'south_west' : 'north_east' }}
+                    </mat-icon>
+                    <div>
+                      <div class="trader-line">
+                        <strong>{{ move.name }} · {{ shortAddress(move.address) }}</strong>
+                        <button
+                          class="compact-icon-button copy-trader-button"
+                          type="button"
+                          [attr.aria-label]="t('copyTrader') + ': ' + shortAddress(move.address)"
+                          [attr.title]="copiedTraderAddress() === move.address ? t('copied') : t('copyTrader')"
+                          (click)="copyTraderAddress(move.address)"
+                        >
+                          <mat-icon>{{ copiedTraderAddress() === move.address ? 'check' : 'content_copy' }}</mat-icon>
+                        </button>
+                      </div>
+                      <h2>
+                        @if (move.url) {
+                          <a
+                            class="market-link"
+                            [href]="move.url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            [attr.aria-label]="t('openOnPolymarket') + ': ' + move.title"
+                          >
+                            {{ move.title }}
+                            <mat-icon>open_in_new</mat-icon>
+                          </a>
+                        } @else {
+                          {{ move.title }}
+                        }
+                      </h2>
+                      <p>{{ move.detail }}</p>
+                    </div>
+                    <div class="position-pnl">
+                      <strong [class.negative-value]="move.isNegative">{{ formatCurrency(move.value) }}</strong>
+                      <span>{{ move.timestamp ? formatDate(move.timestamp) : t('current') }}</span>
+                    </div>
+                  </article>
+                  <mat-divider></mat-divider>
+                }
+              } @else {
+                <p class="empty-state">{{ t('whalesEmpty') }}</p>
               }
             </mat-card-content>
           </mat-card>
-
-          <section class="stats-grid" [attr.aria-label]="t('trackedWhales')">
-            @for (stat of whaleStats(); track stat.label) {
-              <mat-card class="stat-card" appearance="outlined">
-                <mat-card-content>
-                  <div class="stat-topline">
-                    <span>{{ stat.label }}</span>
-                    <mat-icon>{{ stat.icon }}</mat-icon>
-                  </div>
-                  <strong [class.negative-value]="stat.value.startsWith('-')">{{ stat.value }}</strong>
-                  <small>{{ stat.delta }}</small>
-                </mat-card-content>
-              </mat-card>
-            }
-          </section>
-
-          @if (whaleRows().length) {
-            <section class="whales-grid">
-              <mat-card class="whales-card" appearance="outlined">
-                <mat-card-header>
-                  <mat-card-title>{{ t('trackedWhales') }}</mat-card-title>
-                  <mat-card-subtitle>{{ t('whaleListSubtitle') }}</mat-card-subtitle>
-                </mat-card-header>
-
-                <mat-card-content class="whale-list">
-                  @for (whale of whaleRows(); track whale.address) {
-                    <article class="whale-row">
-                      <div class="whale-identity">
-                        <span class="profile-fallback">
-                          <mat-icon>account_circle</mat-icon>
-                        </span>
-                        <div>
-                          <h2>{{ whale.name }}</h2>
-                          <p>{{ shortAddress(whale.address) }}</p>
-                        </div>
-                      </div>
-
-                      <div class="whale-metrics">
-                        <div>
-                          <span>{{ t('currentValue') }}</span>
-                          <strong>{{ formatCurrency(whale.currentValue) }}</strong>
-                        </div>
-                        <div>
-                          <span>{{ t('openPnl') }}</span>
-                          <strong [class.negative-value]="whale.openPnl < 0">{{ formatCurrency(whale.openPnl) }}</strong>
-                        </div>
-                        <div>
-                          <span>{{ t('openPositions') }}</span>
-                          <strong>{{ whale.openPositions }}</strong>
-                        </div>
-                        <div>
-                          <span>{{ t('recentTrades') }}</span>
-                          <strong>{{ whale.trades }}</strong>
-                        </div>
-                      </div>
-
-                      <div class="whale-market">
-                        <span>{{ t('whaleTopMarket') }}</span>
-                        <strong [title]="whale.topMarket">{{ whale.topMarket }}</strong>
-                      </div>
-
-                      <button
-                        mat-icon-button
-                        type="button"
-                        [attr.aria-label]="'Remove ' + shortAddress(whale.address)"
-                        (click)="removeWhale(whale.address)"
-                      >
-                        <mat-icon>close</mat-icon>
-                      </button>
-                    </article>
-                    <mat-divider></mat-divider>
-                  }
-                </mat-card-content>
-              </mat-card>
-
-              <mat-card class="whale-feed-card" appearance="outlined">
-                <mat-card-header>
-                  <mat-card-title>{{ t('whaleFeed') }}</mat-card-title>
-                  <mat-card-subtitle>{{ t('whaleFeedSubtitle') }}</mat-card-subtitle>
-                </mat-card-header>
-
-                <mat-card-content class="whale-feed">
-                  @for (move of whaleMovements(); track move.address + move.title + move.detail) {
-                    <article class="whale-move">
-                      <mat-icon [class.negative-value]="move.isNegative">
-                        {{ move.isLarge ? 'priority_high' : 'timeline' }}
-                      </mat-icon>
-                      <div>
-                        <strong>{{ move.name }}</strong>
-                        <h2>{{ move.title }}</h2>
-                        <p>{{ move.detail }} · {{ shortAddress(move.address) }}</p>
-                      </div>
-                      <div class="position-pnl">
-                        <strong [class.negative-value]="move.isNegative">{{ formatCurrency(move.value) }}</strong>
-                        <span>{{ move.timestamp ? formatDate(move.timestamp) : t('current') }}</span>
-                      </div>
-                    </article>
-                    <mat-divider></mat-divider>
-                  }
-                </mat-card-content>
-              </mat-card>
-            </section>
-          } @else {
-            <mat-card appearance="outlined">
-              <mat-card-content>
-                <p class="empty-state">{{ t('whalesEmpty') }}</p>
-              </mat-card-content>
-            </mat-card>
-          }
         </section>
       </mat-tab>
     </mat-tab-group>
