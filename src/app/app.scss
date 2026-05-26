@@ -8,22 +8,6 @@
   background: #f5f7fb;
 }
 
-.sidenav {
-  width: 17rem;
-  border-right: 1px solid #d9e2ec;
-  background: #ffffff;
-  padding: 1rem;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: #172033;
-  text-decoration: none;
-  padding: 0.4rem 0.5rem 1.2rem;
-}
-
 .brand-mark {
   display: grid;
   width: 2.5rem;
@@ -35,12 +19,6 @@
   font-weight: 700;
 }
 
-.brand span:last-child {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.brand small,
 .section-label,
 mat-card-subtitle,
 .market-main p,
@@ -48,17 +26,20 @@ mat-card-subtitle,
   color: #667085;
 }
 
-.active {
-  border-radius: 0.75rem;
-  background: #e9f1ff;
-}
-
 .toolbar {
   align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   min-height: 6rem;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid #d9e2ec;
   background: #ffffff;
+}
+
+.toolbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
 }
 
 .toolbar h1 {
@@ -76,14 +57,298 @@ mat-card-subtitle,
   text-transform: uppercase;
 }
 
-.toolbar-spacer {
-  flex: 1 1 auto;
+.language-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 1fr);
+  flex: 0 0 auto;
+  gap: 0.2rem;
+  border: 1px solid #d9e2ec;
+  border-radius: 999px;
+  padding: 0.2rem;
+  background: #f8fafc;
+}
+
+.language-toggle button {
+  min-width: 2.7rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: #667085;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.language-toggle .active-language {
+  color: #ffffff;
+  background: #005cbb;
+  box-shadow: 0 0.35rem 0.9rem rgba(0, 92, 187, 0.2);
 }
 
 .workspace {
   display: grid;
   gap: 1.25rem;
   padding: 1.5rem;
+}
+
+.content-tabs {
+  display: block;
+}
+
+.tab-panel {
+  display: grid;
+  gap: 1.25rem;
+  padding-top: 1.25rem;
+}
+
+.account-card mat-card-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.account-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+}
+
+.account-form button {
+  min-height: 3.5rem;
+}
+
+.account-error {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 0.5rem;
+  padding: 0.8rem;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.account-results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(22rem, 1.2fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.account-profile,
+.account-metrics,
+.position-row {
+  display: flex;
+  align-items: center;
+}
+
+.account-profile {
+  gap: 0.9rem;
+}
+
+.account-profile img,
+.profile-fallback {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+}
+
+.profile-fallback {
+  display: grid;
+  place-items: center;
+  color: #005cbb;
+  background: #e9f1ff;
+}
+
+.account-profile h2 {
+  margin: 0.15rem 0 0;
+  color: #101828;
+  font-size: 1.25rem;
+}
+
+.account-profile p {
+  margin: 0.2rem 0 0;
+  color: #667085;
+}
+
+.account-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.account-metrics div {
+  display: grid;
+  gap: 0.25rem;
+  border-radius: 0.65rem;
+  padding: 0.85rem;
+  background: #f8fafc;
+}
+
+.account-metrics span,
+.position-row p,
+.empty-state {
+  color: #667085;
+}
+
+.account-metrics strong {
+  color: #101828;
+  font-size: 1.25rem;
+}
+
+.account-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(22rem, 0.75fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.profile-card,
+.positions-card,
+.trades-card {
+  grid-column: 1 / -1;
+}
+
+.charts-grid {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.donut-card mat-card-content {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.donut-wrap {
+  position: relative;
+  display: grid;
+  width: min(14rem, 100%);
+  margin: 0 auto;
+  place-items: center;
+  aspect-ratio: 1;
+}
+
+.donut-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.donut-track {
+  fill: transparent;
+  stroke: #e5e7eb;
+  stroke-width: 4.9;
+}
+
+.donut-segment {
+  cursor: pointer;
+}
+
+.donut-center {
+  position: absolute;
+  display: grid;
+  max-width: 7rem;
+  place-items: center;
+  text-align: center;
+}
+
+.donut-center span {
+  color: #667085;
+  font-weight: 600;
+}
+
+.donut-center strong {
+  color: #101828;
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.donut-legend {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.donut-legend div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 0.55rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.donut-legend span:not(.legend-dot) {
+  overflow: hidden;
+  color: #101828;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut-legend strong {
+  color: #101828;
+}
+
+.donut-legend small {
+  color: #667085;
+}
+
+.legend-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  max-width: min(22rem, calc(100vw - 2rem));
+  gap: 0.3rem;
+  border: 1px solid #d9e2ec;
+  border-radius: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  pointer-events: none;
+  color: #101828;
+  background: #ffffff;
+  box-shadow: 0 1rem 2rem rgba(15, 23, 42, 0.14);
+}
+
+.chart-tooltip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-tooltip span {
+  color: #667085;
+}
+
+.detail-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.detail-list div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  border-radius: 0.65rem;
+  padding: 0.8rem;
+  background: #f8fafc;
+}
+
+.detail-list span,
+.trade-row p,
+.position-row small {
+  color: #667085;
+}
+
+.detail-list strong {
+  overflow: hidden;
+  color: #101828;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stats-grid {
@@ -140,10 +405,6 @@ mat-card-header {
   padding-bottom: 1rem;
 }
 
-mat-card-header button {
-  margin-left: auto;
-}
-
 .market-list {
   display: grid;
   gap: 1rem;
@@ -152,6 +413,171 @@ mat-card-header button {
 .market-row {
   justify-content: space-between;
   gap: 1rem;
+}
+
+.position-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.position-row {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.position-row h2 {
+  margin: 0 0 0.25rem;
+  color: #101828;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.position-row p {
+  margin: 0;
+}
+
+.position-row small {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.position-pnl {
+  display: grid;
+  justify-items: end;
+  gap: 0.25rem;
+}
+
+.position-pnl strong {
+  color: #07855f;
+}
+
+.position-pnl span {
+  color: #667085;
+}
+
+.negative-value {
+  color: #c2410c !important;
+}
+
+.trade-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.trade-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+}
+
+.trade-row div:last-child {
+  text-align: right;
+}
+
+.trade-row strong {
+  color: #101828;
+}
+
+.trade-row p {
+  margin: 0.25rem 0 0;
+}
+
+.whales-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(22rem, 0.75fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.whale-list,
+.whale-feed {
+  display: grid;
+  gap: 1rem;
+}
+
+.whale-row {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.9fr) minmax(24rem, 1.4fr) minmax(12rem, 0.8fr) auto;
+  gap: 1rem;
+  align-items: center;
+}
+
+.whale-identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.85rem;
+}
+
+.whale-identity h2,
+.whale-move h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.whale-identity p,
+.whale-market span,
+.whale-move p {
+  margin: 0.25rem 0 0;
+  color: #667085;
+}
+
+.whale-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.whale-metrics div,
+.whale-market {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  border-radius: 0.55rem;
+  padding: 0.65rem;
+  background: #f8fafc;
+}
+
+.whale-metrics span {
+  color: #667085;
+  font-size: 0.8rem;
+}
+
+.whale-metrics strong,
+.whale-market strong,
+.whale-move strong {
+  overflow: hidden;
+  color: #101828;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.whale-feed-card {
+  position: sticky;
+  top: 1rem;
+}
+
+.whale-move {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.whale-move mat-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  color: #005cbb;
+  background: #e9f1ff;
+}
+
+.list-empty {
+  padding: 0 1rem 1rem;
 }
 
 .market-main {
@@ -200,16 +626,25 @@ mat-card-header button {
     conic-gradient(#005cbb 0 72%, #e5e7eb 72% 100%);
 }
 
-.score-ring span {
-  align-self: end;
-  color: #667085;
-  font-weight: 500;
+.score-ring-center {
+  display: grid;
+  gap: 0.15rem;
+  max-width: 8.5rem;
+  place-items: center;
+  text-align: center;
 }
 
-.score-ring strong {
-  align-self: start;
+.score-ring-center span {
+  color: #667085;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.score-ring-center strong {
   color: #101828;
   font-size: 3rem;
+  line-height: 0.95;
 }
 
 .allocation {
@@ -236,10 +671,6 @@ mat-card-header button {
 }
 
 @media (max-width: 900px) {
-  .sidenav {
-    display: none;
-  }
-
   .toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -247,12 +678,21 @@ mat-card-header button {
     height: auto;
   }
 
-  .toolbar-spacer {
-    display: none;
-  }
-
   .stats-grid,
   .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-form,
+  .account-results,
+  .account-metrics,
+  .account-detail-grid,
+  .charts-grid,
+  .donut-card mat-card-content,
+  .detail-list,
+  .whales-grid,
+  .whale-row,
+  .whale-metrics {
     grid-template-columns: 1fr;
   }
 
@@ -261,10 +701,23 @@ mat-card-header button {
     padding: 1rem;
   }
 
+  .position-row,
+  .trade-row,
   .market-row,
-  .market-odds {
+  .market-odds,
+  .whale-move {
     align-items: stretch;
     flex-direction: column;
     text-align: left;
+  }
+
+  .position-pnl,
+  .trade-row div:last-child {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .whale-feed-card {
+    position: static;
   }
 }

@@ -1,139 +1,589 @@
-<mat-sidenav-container class="layout">
-  <mat-sidenav class="sidenav" mode="side" opened>
-    <a class="brand" href="#" aria-label="Polymarket dashboard home">
+<div class="layout">
+  <mat-toolbar class="toolbar">
+    <div class="toolbar-brand">
       <span class="brand-mark">P</span>
-      <span>
-        <strong>PolyDesk</strong>
-        <small>Analytics terminal</small>
-      </span>
-    </a>
-
-    <mat-nav-list aria-label="Dashboard navigation">
-      @for (item of navItems; track item.label) {
-        <a mat-list-item href="#" [class.active]="item.label === 'Overview'">
-          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-          <span matListItemTitle>{{ item.label }}</span>
-        </a>
-      }
-    </mat-nav-list>
-  </mat-sidenav>
-
-  <mat-sidenav-content>
-    <mat-toolbar class="toolbar">
       <div>
         <span class="section-label">Polymarket analytics</span>
-        <h1>Prediction market dashboard</h1>
+        <h1>{{ t('predictionDashboard') }}</h1>
       </div>
+    </div>
 
-      <span class="toolbar-spacer"></span>
-
-      <button mat-icon-button aria-label="Refresh dashboard">
-        <mat-icon>refresh</mat-icon>
+    <div class="language-toggle" aria-label="Language">
+      <button
+        mat-button
+        type="button"
+        [class.active-language]="i18n.language() === 'ru'"
+        (click)="setLanguage('ru')"
+      >
+        RU
       </button>
-      <button mat-flat-button color="primary">
-        <mat-icon>account_balance_wallet</mat-icon>
-        Connect wallet
+      <button
+        mat-button
+        type="button"
+        [class.active-language]="i18n.language() === 'en'"
+        (click)="setLanguage('en')"
+      >
+        EN
       </button>
-    </mat-toolbar>
+    </div>
+  </mat-toolbar>
 
-    <main class="workspace">
-      <section class="stats-grid" aria-label="Portfolio statistics">
-        @for (stat of stats; track stat.label) {
-          <mat-card class="stat-card" appearance="outlined">
+  <main class="workspace">
+    <mat-tab-group class="content-tabs" mat-stretch-tabs="false" animationDuration="180ms">
+      <mat-tab [label]="t('account')">
+        <section class="tab-panel">
+          <mat-card class="account-card" appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>{{ t('accountAnalytics') }}</mat-card-title>
+              <mat-card-subtitle>{{ t('pasteAddress') }}</mat-card-subtitle>
+            </mat-card-header>
+
             <mat-card-content>
-              <div class="stat-topline">
-                <span>{{ stat.label }}</span>
-                <mat-icon>{{ stat.icon }}</mat-icon>
+              <div class="account-form">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('inputLabel') }}</mat-label>
+                  <input
+                    matInput
+                    [value]="accountAddress()"
+                    placeholder="0x..."
+                    spellcheck="false"
+                    (input)="accountAddress.set($any($event.target).value)"
+                    (keyup.enter)="loadAccount()"
+                  />
+                  <mat-hint>{{ t('enterAddressHint') }}</mat-hint>
+                </mat-form-field>
+
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  [disabled]="accountLoading() || !isValidAddress()"
+                  (click)="loadAccount()"
+                >
+                  <mat-icon>{{ accountLoading() ? 'hourglass_top' : 'analytics' }}</mat-icon>
+                  {{ accountLoading() ? t('loading') : t('loadAnalytics') }}
+                </button>
               </div>
-              <strong>{{ stat.value }}</strong>
-              <small>{{ stat.delta }}</small>
+
+              @if (accountError()) {
+                <div class="account-error">
+                  <mat-icon>error</mat-icon>
+                  <span>{{ accountError() }}</span>
+                </div>
+              }
+
+              @if (loadedAddress() && !accountLoading()) {
+                <section class="account-results" aria-label="Loaded Polymarket account analytics">
+                  <div class="account-profile">
+                    @if (profile()?.profileImage) {
+                      <img [src]="profile()?.profileImage" alt="" />
+                    } @else {
+                      <span class="profile-fallback">
+                        <mat-icon>person</mat-icon>
+                      </span>
+                    }
+
+                    <div>
+                      <span class="section-label">{{ t('loadedAccount') }}</span>
+                      <h2>{{ displayName() }}</h2>
+                      <p>{{ shortAddress(loadedAddress()) }}</p>
+                    </div>
+                  </div>
+
+                  <div class="account-metrics">
+                    <div>
+                      <span>{{ t('currentValue') }}</span>
+                      <strong>{{ formatCurrency(currentValue()) }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('initialValue') }}</span>
+                      <strong>{{ formatCurrency(initialValue()) }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('openPnl') }}</span>
+                      <strong [class.negative-value]="openPnl() < 0">{{ formatCurrency(openPnl()) }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('realizedPnl') }}</span>
+                      <strong [class.negative-value]="realizedPnl() < 0">{{ formatCurrency(realizedPnl()) }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('openPositions') }}</span>
+                      <strong>{{ positions().length }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('marketsTraded') }}</span>
+                      <strong>{{ tradedMarkets() ?? '--' }}</strong>
+                    </div>
+                  </div>
+                </section>
+              }
             </mat-card-content>
           </mat-card>
-        }
-      </section>
 
-      <section class="dashboard-grid">
-        <mat-card class="markets-card" appearance="outlined">
-          <mat-card-header>
-            <mat-card-title>Highest conviction markets</mat-card-title>
-            <mat-card-subtitle>Live opportunities ranked by activity and spread</mat-card-subtitle>
-            <button mat-button color="primary">View all</button>
-          </mat-card-header>
+          @if (loadedAddress() && !accountLoading()) {
+            <section class="account-detail-grid">
+              <mat-card class="profile-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('profileDetails') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('profileDetailsSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="detail-list">
+                  <div>
+                    <span>{{ t('name') }}</span>
+                    <strong>{{ profile()?.name || '--' }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ t('pseudonym') }}</span>
+                    <strong>{{ profile()?.pseudonym || '--' }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ t('proxyWallet') }}</span>
+                    <strong>{{ shortAddress(profile()?.proxyWallet ?? loadedAddress()) }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ t('xUsername') }}</span>
+                    <strong>{{ profile()?.xUsername || '--' }}</strong>
+                  </div>
+                  <div>
+                    <span>{{ t('verified') }}</span>
+                    <strong>{{ profile()?.verifiedBadge ? t('yes') : t('no') }}</strong>
+                  </div>
+                </mat-card-content>
+              </mat-card>
 
-          <mat-card-content class="market-list">
-            @for (market of markets; track market.title) {
-              <article class="market-row">
-                <div class="market-main">
-                  <mat-chip-set aria-label="Market category">
-                    <mat-chip>{{ market.category }}</mat-chip>
-                  </mat-chip-set>
-                  <h2>{{ market.title }}</h2>
-                  <p>{{ market.volume }} volume</p>
-                  <mat-progress-bar mode="determinate" [value]="market.liquidity"></mat-progress-bar>
+              <section class="charts-grid" [attr.aria-label]="t('accountPositionCharts')">
+                @for (chart of [currentPositionsChart(), closedPositionsChart()]; track chart.title) {
+                  <mat-card class="donut-card" appearance="outlined">
+                    <mat-card-header>
+                      <mat-card-title>{{ chart.title }}</mat-card-title>
+                      <mat-card-subtitle>{{ chart.subtitle }}</mat-card-subtitle>
+                    </mat-card-header>
+
+                    <mat-card-content>
+                      @if (chart.segments.length) {
+                        <div class="donut-wrap">
+                          <svg class="donut-chart" viewBox="0 0 42 42" role="img">
+                            <circle class="donut-track" cx="21" cy="21" r="13.35"></circle>
+                            @for (segment of chart.segments; track segment.label) {
+                              <path
+                                class="donut-segment"
+                                [attr.d]="segment.path"
+                                [attr.fill]="segment.color"
+                                (mousemove)="showChartTooltip($event, segment)"
+                                (mouseleave)="hideChartTooltip()"
+                              ></path>
+                            }
+                          </svg>
+                          <div class="donut-center">
+                            <span>{{ t('total') }}</span>
+                            <strong>{{ chart.formattedTotal }}</strong>
+                          </div>
+                        </div>
+
+                        <div class="donut-legend">
+                          @for (segment of chart.segments; track segment.label) {
+                            <div>
+                              <span class="legend-dot" [style.background]="segment.color"></span>
+                              <span [title]="segment.label">{{ segment.label }}</span>
+                              <strong [class.negative-value]="segment.isNegative">{{ segment.formattedValue }}</strong>
+                              <small>{{ formatPercent(segment.percent) }}</small>
+                            </div>
+                          }
+                        </div>
+                      } @else {
+                        <p class="empty-state">{{ t('notEnoughChartData') }}</p>
+                      }
+                    </mat-card-content>
+                  </mat-card>
+                }
+              </section>
+
+              <mat-card class="positions-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('currentPositions') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('currentPositionsSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content class="position-list">
+                  @if (topPositions().length) {
+                    @for (position of topPositions(); track position.conditionId + position.asset) {
+                      <article class="position-row expanded">
+                        <div>
+                          <h2>{{ position.title }}</h2>
+                          <p>
+                            {{ position.outcome }} · {{ formatCurrency(position.currentValue) }} {{ t('current').toLowerCase() }} ·
+                            {{ position.size }} shares
+                          </p>
+                          <small>
+                            {{ t('avg') }} {{ formatPrice(position.avgPrice) }} · {{ t('current') }}
+                            {{ formatPrice(position.curPrice) }} · {{ t('ends') }} {{ formatDate(position.endDate) }}
+                          </small>
+                        </div>
+
+                        <div class="position-pnl">
+                          <strong [class.negative-value]="position.cashPnl < 0">
+                            {{ formatCurrency(position.cashPnl) }}
+                          </strong>
+                          <span>{{ formatPercent(position.percentPnl) }}</span>
+                        </div>
+                      </article>
+                      <mat-divider></mat-divider>
+                    }
+                  } @else {
+                    <p class="empty-state">{{ t('noCurrentPositions') }}</p>
+                  }
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="history-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('closedPositions') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('closedPositionsSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="position-list">
+                  @if (topClosedPositions().length) {
+                    @for (position of topClosedPositions(); track position.conditionId + position.asset) {
+                      <article class="position-row">
+                        <div>
+                          <h2>{{ position.title }}</h2>
+                          <p>{{ position.outcome }} · {{ formatCurrency(position.currentValue) }}</p>
+                        </div>
+                        <div class="position-pnl">
+                          <strong [class.negative-value]="position.realizedPnl < 0">
+                            {{ formatCurrency(position.realizedPnl) }}
+                          </strong>
+                          <span>{{ formatPercent(position.percentRealizedPnl) }}</span>
+                        </div>
+                      </article>
+                      <mat-divider></mat-divider>
+                    }
+                  } @else {
+                    <p class="empty-state">{{ t('noClosedPositions') }}</p>
+                  }
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="activity-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('accountActivity') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('accountActivitySubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-list>
+                  @if (recentActivity().length) {
+                    @for (item of recentActivity(); track item.transactionHash || item.timestamp) {
+                      <mat-list-item>
+                        <mat-icon matListItemIcon>history</mat-icon>
+                        <span matListItemTitle>{{ item.type || item.side || 'Activity' }}</span>
+                        <span matListItemLine>{{ item.title || item.slug || 'Polymarket event' }}</span>
+                        <span matListItemMeta>{{ formatDate(item.timestamp) }}</span>
+                      </mat-list-item>
+                    }
+                  } @else {
+                    <p class="empty-state list-empty">{{ t('noActivity') }}</p>
+                  }
+                </mat-list>
+              </mat-card>
+
+              <mat-card class="trades-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('recentTrades') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('latestTradesSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="trade-list">
+                  @if (recentTrades().length) {
+                    @for (trade of recentTrades(); track trade.transactionHash || trade.timestamp) {
+                      <article class="trade-row">
+                        <div>
+                          <strong>{{ trade.side || 'Trade' }} {{ trade.outcome || '' }}</strong>
+                          <p>{{ trade.title || trade.slug || 'Polymarket market' }}</p>
+                        </div>
+                        <div>
+                          <strong>{{ formatCurrency(trade.usdcSize) }}</strong>
+                          <p>{{ formatPrice(trade.price) }} · {{ formatDate(trade.timestamp) }}</p>
+                        </div>
+                      </article>
+                      <mat-divider></mat-divider>
+                    }
+                  } @else {
+                    <p class="empty-state">{{ t('noTrades') }}</p>
+                  }
+                </mat-card-content>
+              </mat-card>
+            </section>
+          }
+        </section>
+      </mat-tab>
+
+      <mat-tab [label]="t('marketOverview')">
+        <section class="tab-panel">
+          @if (marketOverviewError()) {
+            <div class="account-error">
+              <mat-icon>error</mat-icon>
+              <span>{{ marketOverviewError() }}</span>
+            </div>
+          }
+
+          <section class="stats-grid" [attr.aria-label]="t('marketOverviewStats')">
+            @for (stat of marketStats(); track stat.label) {
+              <mat-card class="stat-card" appearance="outlined">
+                <mat-card-content>
+                  <div class="stat-topline">
+                    <span>{{ stat.label }}</span>
+                    <mat-icon>{{ stat.icon }}</mat-icon>
+                  </div>
+                  <strong>{{ stat.value }}</strong>
+                  <small>{{ stat.delta }}</small>
+                </mat-card-content>
+              </mat-card>
+            }
+          </section>
+
+          <section class="dashboard-grid">
+            <mat-card class="markets-card" appearance="outlined">
+              <mat-card-header>
+                <mat-card-title>{{ t('marketOverviewTitle') }}</mat-card-title>
+                <mat-card-subtitle>{{ t('marketOverviewSubtitle') }}</mat-card-subtitle>
+              </mat-card-header>
+
+              <mat-card-content class="market-list">
+                @if (marketOverviewLoading()) {
+                  <p class="empty-state">{{ t('marketOverviewLoading') }}</p>
+                }
+
+                @for (market of marketRows(); track market.title) {
+                  <article class="market-row">
+                    <div class="market-main">
+                      <mat-chip-set aria-label="Market category">
+                        <mat-chip>{{ market.category }}</mat-chip>
+                      </mat-chip-set>
+                      <h2>{{ market.title }}</h2>
+                      <p>{{ market.volume }} total · {{ market.detail }}</p>
+                      <mat-progress-bar mode="determinate" [value]="market.liquidity"></mat-progress-bar>
+                    </div>
+
+                    <div class="market-odds">
+                      <strong>{{ market.probability }}%</strong>
+                      <span>{{ market.detail }}</span>
+                      <mat-chip>{{ market.side }}</mat-chip>
+                    </div>
+                  </article>
+                  <mat-divider></mat-divider>
+                }
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="risk-card" appearance="outlined">
+              <mat-card-header>
+                <mat-card-title>{{ t('marketMix') }}</mat-card-title>
+                <mat-card-subtitle>{{ t('marketMixSubtitle') }}</mat-card-subtitle>
+              </mat-card-header>
+
+              <mat-card-content>
+                <div class="score-ring">
+                  <div class="score-ring-center">
+                    <span>{{ t('signalScore') }}</span>
+                    <strong>{{ marketSignalScore() }}</strong>
+                  </div>
                 </div>
 
-                <div class="market-odds" [class.negative]="market.change.startsWith('-')">
-                  <strong>{{ market.probability }}%</strong>
-                  <span>{{ market.change }}</span>
-                  <button mat-flat-button color="primary">{{ market.side }}</button>
+                <div class="allocation">
+                  @for (item of marketMix(); track item.label) {
+                    <div>
+                      <span>{{ item.label }}</span>
+                      <strong>{{ item.percent }}%</strong>
+                    </div>
+                  }
                 </div>
-              </article>
-              <mat-divider></mat-divider>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="activity-card" appearance="outlined">
+              <mat-card-header>
+                <mat-card-title>{{ t('recentInsights') }}</mat-card-title>
+                <mat-card-subtitle>{{ t('recentInsightsSubtitle') }}</mat-card-subtitle>
+              </mat-card-header>
+
+              <mat-list>
+                @for (item of marketInsights(); track item.market) {
+                  <mat-list-item>
+                    <mat-icon matListItemIcon>tips_and_updates</mat-icon>
+                    <span matListItemTitle>{{ item.action }}</span>
+                    <span matListItemLine>{{ item.market }}</span>
+                    <span matListItemMeta>{{ item.value }}</span>
+                  </mat-list-item>
+                }
+              </mat-list>
+            </mat-card>
+          </section>
+        </section>
+      </mat-tab>
+
+      <mat-tab [label]="t('whales')">
+        <section class="tab-panel">
+          <mat-card class="account-card" appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>{{ t('whalesTitle') }}</mat-card-title>
+              <mat-card-subtitle>{{ t('whalesSubtitle') }}</mat-card-subtitle>
+            </mat-card-header>
+
+            <mat-card-content>
+              <div class="account-form">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('walletAddress') }}</mat-label>
+                  <input
+                    matInput
+                    [value]="whaleAddress()"
+                    placeholder="0x..."
+                    spellcheck="false"
+                    (input)="whaleAddress.set($any($event.target).value)"
+                    (keyup.enter)="addWhale()"
+                  />
+                  <mat-hint>{{ t('whaleAddressHint') }}</mat-hint>
+                </mat-form-field>
+
+                <button
+                  mat-flat-button
+                  color="primary"
+                  type="button"
+                  [disabled]="whaleLoading() || !isValidWhaleAddress()"
+                  (click)="addWhale()"
+                >
+                  <mat-icon>{{ whaleLoading() ? 'hourglass_top' : 'radar' }}</mat-icon>
+                  {{ whaleLoading() ? t('loading') : t('loadAnalytics') }}
+                </button>
+              </div>
+
+              @if (whaleError()) {
+                <div class="account-error">
+                  <mat-icon>error</mat-icon>
+                  <span>{{ whaleError() }}</span>
+                </div>
+              }
+            </mat-card-content>
+          </mat-card>
+
+          <section class="stats-grid" [attr.aria-label]="t('trackedWhales')">
+            @for (stat of whaleStats(); track stat.label) {
+              <mat-card class="stat-card" appearance="outlined">
+                <mat-card-content>
+                  <div class="stat-topline">
+                    <span>{{ stat.label }}</span>
+                    <mat-icon>{{ stat.icon }}</mat-icon>
+                  </div>
+                  <strong [class.negative-value]="stat.value.startsWith('-')">{{ stat.value }}</strong>
+                  <small>{{ stat.delta }}</small>
+                </mat-card-content>
+              </mat-card>
             }
-          </mat-card-content>
-        </mat-card>
+          </section>
 
-        <mat-card class="risk-card" appearance="outlined">
-          <mat-card-header>
-            <mat-card-title>Risk balance</mat-card-title>
-            <mat-card-subtitle>Exposure by market category</mat-card-subtitle>
-          </mat-card-header>
+          @if (whaleRows().length) {
+            <section class="whales-grid">
+              <mat-card class="whales-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('trackedWhales') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('whaleListSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
 
-          <mat-card-content>
-            <div class="score-ring">
-              <span>Moderate</span>
-              <strong>72</strong>
-            </div>
+                <mat-card-content class="whale-list">
+                  @for (whale of whaleRows(); track whale.address) {
+                    <article class="whale-row">
+                      <div class="whale-identity">
+                        <span class="profile-fallback">
+                          <mat-icon>account_circle</mat-icon>
+                        </span>
+                        <div>
+                          <h2>{{ whale.name }}</h2>
+                          <p>{{ shortAddress(whale.address) }}</p>
+                        </div>
+                      </div>
 
-            <div class="allocation">
-              <div>
-                <span>Macro</span>
-                <strong>42%</strong>
-              </div>
-              <div>
-                <span>Crypto</span>
-                <strong>28%</strong>
-              </div>
-              <div>
-                <span>Sports</span>
-                <strong>18%</strong>
-              </div>
-              <div>
-                <span>Other</span>
-                <strong>12%</strong>
-              </div>
-            </div>
-          </mat-card-content>
-        </mat-card>
+                      <div class="whale-metrics">
+                        <div>
+                          <span>{{ t('currentValue') }}</span>
+                          <strong>{{ formatCurrency(whale.currentValue) }}</strong>
+                        </div>
+                        <div>
+                          <span>{{ t('openPnl') }}</span>
+                          <strong [class.negative-value]="whale.openPnl < 0">{{ formatCurrency(whale.openPnl) }}</strong>
+                        </div>
+                        <div>
+                          <span>{{ t('openPositions') }}</span>
+                          <strong>{{ whale.openPositions }}</strong>
+                        </div>
+                        <div>
+                          <span>{{ t('recentTrades') }}</span>
+                          <strong>{{ whale.trades }}</strong>
+                        </div>
+                      </div>
 
-        <mat-card class="activity-card" appearance="outlined">
-          <mat-card-header>
-            <mat-card-title>Recent activity</mat-card-title>
-            <mat-card-subtitle>Execution stream</mat-card-subtitle>
-          </mat-card-header>
+                      <div class="whale-market">
+                        <span>{{ t('whaleTopMarket') }}</span>
+                        <strong [title]="whale.topMarket">{{ whale.topMarket }}</strong>
+                      </div>
 
-          <mat-list>
-            @for (item of activity; track item.time) {
-              <mat-list-item>
-                <mat-icon matListItemIcon>bolt</mat-icon>
-                <span matListItemTitle>{{ item.action }}</span>
-                <span matListItemLine>{{ item.market }}</span>
-                <span matListItemMeta>{{ item.value }}</span>
-              </mat-list-item>
-            }
-          </mat-list>
-        </mat-card>
-      </section>
-    </main>
-  </mat-sidenav-content>
-</mat-sidenav-container>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        [attr.aria-label]="'Remove ' + shortAddress(whale.address)"
+                        (click)="removeWhale(whale.address)"
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    </article>
+                    <mat-divider></mat-divider>
+                  }
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="whale-feed-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('whaleFeed') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('whaleFeedSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content class="whale-feed">
+                  @for (move of whaleMovements(); track move.address + move.title + move.detail) {
+                    <article class="whale-move">
+                      <mat-icon [class.negative-value]="move.isNegative">
+                        {{ move.isLarge ? 'priority_high' : 'timeline' }}
+                      </mat-icon>
+                      <div>
+                        <strong>{{ move.name }}</strong>
+                        <h2>{{ move.title }}</h2>
+                        <p>{{ move.detail }} · {{ shortAddress(move.address) }}</p>
+                      </div>
+                      <div class="position-pnl">
+                        <strong [class.negative-value]="move.isNegative">{{ formatCurrency(move.value) }}</strong>
+                        <span>{{ move.timestamp ? formatDate(move.timestamp) : t('current') }}</span>
+                      </div>
+                    </article>
+                    <mat-divider></mat-divider>
+                  }
+                </mat-card-content>
+              </mat-card>
+            </section>
+          } @else {
+            <mat-card appearance="outlined">
+              <mat-card-content>
+                <p class="empty-state">{{ t('whalesEmpty') }}</p>
+              </mat-card-content>
+            </mat-card>
+          }
+        </section>
+      </mat-tab>
+    </mat-tab-group>
+  </main>
+</div>
+
+@if (chartTooltip()) {
+  <div
+    class="chart-tooltip"
+    [style.left.px]="chartTooltip()!.x"
+    [style.top.px]="chartTooltip()!.y"
+  >
+    <strong>{{ chartTooltip()!.label }}</strong>
+    <span>{{ chartTooltip()!.value }} · {{ chartTooltip()!.percent }}</span>
+  </div>
+}
