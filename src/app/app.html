@@ -1,0 +1,139 @@
+<mat-sidenav-container class="layout">
+  <mat-sidenav class="sidenav" mode="side" opened>
+    <a class="brand" href="#" aria-label="Polymarket dashboard home">
+      <span class="brand-mark">P</span>
+      <span>
+        <strong>PolyDesk</strong>
+        <small>Analytics terminal</small>
+      </span>
+    </a>
+
+    <mat-nav-list aria-label="Dashboard navigation">
+      @for (item of navItems; track item.label) {
+        <a mat-list-item href="#" [class.active]="item.label === 'Overview'">
+          <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
+          <span matListItemTitle>{{ item.label }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <mat-toolbar class="toolbar">
+      <div>
+        <span class="section-label">Polymarket analytics</span>
+        <h1>Prediction market dashboard</h1>
+      </div>
+
+      <span class="toolbar-spacer"></span>
+
+      <button mat-icon-button aria-label="Refresh dashboard">
+        <mat-icon>refresh</mat-icon>
+      </button>
+      <button mat-flat-button color="primary">
+        <mat-icon>account_balance_wallet</mat-icon>
+        Connect wallet
+      </button>
+    </mat-toolbar>
+
+    <main class="workspace">
+      <section class="stats-grid" aria-label="Portfolio statistics">
+        @for (stat of stats; track stat.label) {
+          <mat-card class="stat-card" appearance="outlined">
+            <mat-card-content>
+              <div class="stat-topline">
+                <span>{{ stat.label }}</span>
+                <mat-icon>{{ stat.icon }}</mat-icon>
+              </div>
+              <strong>{{ stat.value }}</strong>
+              <small>{{ stat.delta }}</small>
+            </mat-card-content>
+          </mat-card>
+        }
+      </section>
+
+      <section class="dashboard-grid">
+        <mat-card class="markets-card" appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>Highest conviction markets</mat-card-title>
+            <mat-card-subtitle>Live opportunities ranked by activity and spread</mat-card-subtitle>
+            <button mat-button color="primary">View all</button>
+          </mat-card-header>
+
+          <mat-card-content class="market-list">
+            @for (market of markets; track market.title) {
+              <article class="market-row">
+                <div class="market-main">
+                  <mat-chip-set aria-label="Market category">
+                    <mat-chip>{{ market.category }}</mat-chip>
+                  </mat-chip-set>
+                  <h2>{{ market.title }}</h2>
+                  <p>{{ market.volume }} volume</p>
+                  <mat-progress-bar mode="determinate" [value]="market.liquidity"></mat-progress-bar>
+                </div>
+
+                <div class="market-odds" [class.negative]="market.change.startsWith('-')">
+                  <strong>{{ market.probability }}%</strong>
+                  <span>{{ market.change }}</span>
+                  <button mat-flat-button color="primary">{{ market.side }}</button>
+                </div>
+              </article>
+              <mat-divider></mat-divider>
+            }
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="risk-card" appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>Risk balance</mat-card-title>
+            <mat-card-subtitle>Exposure by market category</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="score-ring">
+              <span>Moderate</span>
+              <strong>72</strong>
+            </div>
+
+            <div class="allocation">
+              <div>
+                <span>Macro</span>
+                <strong>42%</strong>
+              </div>
+              <div>
+                <span>Crypto</span>
+                <strong>28%</strong>
+              </div>
+              <div>
+                <span>Sports</span>
+                <strong>18%</strong>
+              </div>
+              <div>
+                <span>Other</span>
+                <strong>12%</strong>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="activity-card" appearance="outlined">
+          <mat-card-header>
+            <mat-card-title>Recent activity</mat-card-title>
+            <mat-card-subtitle>Execution stream</mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-list>
+            @for (item of activity; track item.time) {
+              <mat-list-item>
+                <mat-icon matListItemIcon>bolt</mat-icon>
+                <span matListItemTitle>{{ item.action }}</span>
+                <span matListItemLine>{{ item.market }}</span>
+                <span matListItemMeta>{{ item.value }}</span>
+              </mat-list-item>
+            }
+          </mat-list>
+        </mat-card>
+      </section>
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
