@@ -117,11 +117,25 @@ export class PolymarketAccountService {
     });
   }
 
-  getRecentTrades(limit = 200): Promise<PolymarketTrade[]> {
-    return this.getJson<PolymarketTrade[]>(`${this.dataApi}/trades`, {
-      limit: String(limit),
-      offset: '0',
-    });
+  async getRecentTrades(limit = 200): Promise<PolymarketTrade[]> {
+    const pageSize = 500;
+    const pages = Math.ceil(limit / pageSize);
+    const responses: PolymarketTrade[][] = [];
+
+    for (let index = 0; index < pages; index += 1) {
+      const page = await this.getJsonOrNull<PolymarketTrade[]>(`${this.dataApi}/trades`, {
+        limit: String(pageSize),
+        offset: String(index * pageSize),
+      });
+
+      if (!page?.length) {
+        break;
+      }
+
+      responses.push(page);
+    }
+
+    return this.dedupeTrades(responses.flat()).slice(0, limit);
   }
 
   async getTradedMarketsCount(address: string): Promise<number | null> {
@@ -149,12 +163,7 @@ export class PolymarketAccountService {
   }
 
   private async getJson<T>(url: string, params: Record<string, string>): Promise<T> {
-    const endpoint = new URL(url);
-
-    Object.entries(params).forEach(([key, value]) => {
-      endpoint.searchParams.set(key, value);
-    });
-
+    const endpoint = this.buildEndpoint(url, params);
     const response = await fetch(endpoint);
 
     if (!response.ok) {
@@ -162,5 +171,54 @@ export class PolymarketAccountService {
     }
 
     return response.json() as Promise<T>;
+  }
+
+  private async getJsonOrNull<T>(url: string, params: Record<string, string>): Promise<T | null> {
+    const endpoint = this.buildEndpoint(url, params);
+    const response = await fetch(endpoint);
+
+    if (!response.ok) {
+      if (response.status === 400 || response.status === 404) {
+        return null;
+      }
+
+      throw new Error(`Polymarket API returned ${response.status}`);
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  private buildEndpoint(url: string, params: Record<string, string>): URL {
+    const endpoint = new URL(url);
+
+    Object.entries(params).forEach(([key, value]) => {
+      endpoint.searchParams.set(key, value);
+    });
+
+    return endpoint;
+  }
+
+  private dedupeTrades(trades: PolymarketTrade[]): PolymarketTrade[] {
+    const seen = new Set<string>();
+
+    return trades.filter((trade) => {
+      const key = [
+        trade.transactionHash,
+        trade.proxyWallet,
+        trade.timestamp,
+        trade.slug,
+        trade.outcome,
+        trade.side,
+        trade.price,
+        trade.size,
+      ].join('|');
+
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
   }
 }

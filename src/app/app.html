@@ -456,15 +456,15 @@
               <div class="feed-mode-toggle" role="group" [attr.aria-label]="t('whales')">
                 <button
                   type="button"
-                  [class.active-feed-mode]="whaleFeedMode() === 'large'"
-                  (click)="setWhaleFeedMode('large')"
+                  [class.active-feed-mode]="whaleStore.mode() === 'large'"
+                  (click)="whaleStore.setMode('large')"
                 >
                   {{ t('whaleFeedLargeMode') }}
                 </button>
                 <button
                   type="button"
-                  [class.active-feed-mode]="whaleFeedMode() === 'risky'"
-                  (click)="setWhaleFeedMode('risky')"
+                  [class.active-feed-mode]="whaleStore.mode() === 'risky'"
+                  (click)="whaleStore.setMode('risky')"
                 >
                   {{ t('whaleFeedRiskyMode') }}
                 </button>
@@ -472,23 +472,42 @@
               <button
                 class="compact-icon-button refresh-trades-button"
                 type="button"
-                [disabled]="whaleLoading()"
+                [disabled]="whaleStore.loading()"
                 [attr.aria-label]="t('refreshWhaleTrades')"
                 [attr.title]="t('refreshWhaleTrades')"
-                (click)="loadWhaleTrades()"
+                (click)="whaleStore.loadTrades()"
               >
-                <mat-icon>{{ whaleLoading() ? 'hourglass_top' : 'refresh' }}</mat-icon>
+                <mat-icon>{{ whaleStore.loading() ? 'hourglass_top' : 'refresh' }}</mat-icon>
               </button>
             </mat-card-header>
 
             <mat-card-content class="whale-feed large-trade-feed">
-              @if (whaleError()) {
+              @if (whaleStore.copyFailed()) {
                 <div class="account-error">
                   <mat-icon>error</mat-icon>
-                  <span>{{ whaleError() }}</span>
+                  <span>{{ t('copyFailed') }} {{ t('copyManualHint') }}</span>
                 </div>
-              } @else if (selectedWhaleMovements().length) {
-                @for (move of selectedWhaleMovements(); track move.address + move.title + move.detail + move.value) {
+              }
+              @if (whaleStore.copyFallbackAddress()) {
+                <input
+                  class="manual-copy-input"
+                  type="text"
+                  readonly
+                  style="width: 100%; margin: 1rem 0; padding: 0.8rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-surface); color: var(--app-text);"
+                  [value]="whaleStore.copyFallbackAddress()"
+                  (focus)="$any($event.target).select()"
+                  (click)="$any($event.target).select()"
+                  [attr.aria-label]="t('copyManualHint')"
+                />
+              }
+
+              @if (whaleStore.error()) {
+                <div class="account-error">
+                  <mat-icon>error</mat-icon>
+                  <span>{{ whaleStore.error() }}</span>
+                </div>
+              } @else if (whaleStore.selectedMovements().length) {
+                @for (move of whaleStore.selectedMovements(); track move.id) {
                   <article class="whale-move">
                     <mat-icon [class.negative-value]="move.isNegative">
                       {{ move.isNegative ? 'south_west' : 'north_east' }}
@@ -500,10 +519,10 @@
                           class="compact-icon-button copy-trader-button"
                           type="button"
                           [attr.aria-label]="t('copyTrader') + ': ' + shortAddress(move.address)"
-                          [attr.title]="copiedTraderAddress() === move.address ? t('copied') : t('copyTrader')"
-                          (click)="copyTraderAddress(move.address)"
+                          [attr.title]="whaleStore.copiedTraderKey() === move.id ? t('copied') : t('copyTrader')"
+                          (click)="whaleStore.copyTraderAddress(move.address, move.id)"
                         >
-                          <mat-icon>{{ copiedTraderAddress() === move.address ? 'check' : 'content_copy' }}</mat-icon>
+                          <mat-icon>{{ whaleStore.copiedTraderKey() === move.id ? 'check' : 'content_copy' }}</mat-icon>
                         </button>
                       </div>
                       <h2>
@@ -536,6 +555,75 @@
               }
             </mat-card-content>
           </mat-card>
+        </section>
+      </mat-tab>
+
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <span class="profile-tab-label">
+            <span class="profile-tab-dot" aria-hidden="true"></span>
+            {{ t('profile') }}
+          </span>
+        </ng-template>
+
+        <section class="tab-panel profile-page">
+          <mat-card class="profile-shell-card" appearance="outlined">
+            <mat-card-header>
+              <span mat-card-avatar class="profile-glow-avatar">
+                PR
+              </span>
+              <mat-card-title>{{ t('profileShellTitle') }}</mat-card-title>
+              <mat-card-subtitle>{{ t('profileShellSubtitle') }}</mat-card-subtitle>
+            </mat-card-header>
+          </mat-card>
+
+          <section class="auth-grid">
+            <mat-card class="auth-card" appearance="outlined">
+              <mat-card-header>
+                <mat-card-title>{{ t('profileAuth') }}</mat-card-title>
+                <mat-card-subtitle>{{ t('profileAuthSubtitle') }}</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content class="auth-form">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('profileEmail') }}</mat-label>
+                  <input matInput type="email" autocomplete="email" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('profilePassword') }}</mat-label>
+                  <input matInput type="password" autocomplete="current-password" />
+                </mat-form-field>
+                <button mat-flat-button color="primary" type="button" disabled>
+                  <mat-icon>lock</mat-icon>
+                  {{ t('signIn') }}
+                </button>
+              </mat-card-content>
+            </mat-card>
+
+            <mat-card class="auth-card" appearance="outlined">
+              <mat-card-header>
+                <mat-card-title>{{ t('profileRegister') }}</mat-card-title>
+                <mat-card-subtitle>{{ t('profileRegisterSubtitle') }}</mat-card-subtitle>
+              </mat-card-header>
+              <mat-card-content class="auth-form">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('profileUsername') }}</mat-label>
+                  <input matInput autocomplete="username" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('profileEmail') }}</mat-label>
+                  <input matInput type="email" autocomplete="email" />
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('profilePassword') }}</mat-label>
+                  <input matInput type="password" autocomplete="new-password" />
+                </mat-form-field>
+                <button mat-flat-button color="primary" type="button" disabled>
+                  <mat-icon>person_add</mat-icon>
+                  {{ t('signUp') }}
+                </button>
+              </mat-card-content>
+            </mat-card>
+          </section>
         </section>
       </mat-tab>
     </mat-tab-group>

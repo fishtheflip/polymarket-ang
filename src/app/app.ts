@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
@@ -19,9 +19,9 @@ import {
 } from './polymarket-account.service';
 import { I18nService, Language } from './i18n.service';
 import { GammaMarket, PolymarketMarketService } from './polymarket-market.service';
+import { WhaleStore } from './state/whale.store';
 
 type ThemeMode = 'light' | 'dark';
-type WhaleFeedMode = 'large' | 'risky';
 
 type DonutSegment = {
   label: string;
@@ -60,18 +60,6 @@ type MarketOverviewRow = {
   liquidity: number;
 };
 
-type WhaleMovement = {
-  address: string;
-  name: string;
-  title: string;
-  detail: string;
-  value: number;
-  price: number;
-  timestamp: number | null;
-  isNegative: boolean;
-  url: string | null;
-};
-
 @Component({
   selector: 'app-root',
   imports: [
@@ -106,12 +94,8 @@ export class App implements OnInit {
   protected readonly marketOverviewLoading = signal(false);
   protected readonly marketOverviewError = signal<string | null>(null);
   protected readonly marketOverviewMarkets = signal<GammaMarket[]>([]);
-  protected readonly whaleLoading = signal(false);
-  protected readonly whaleError = signal<string | null>(null);
-  protected readonly whaleTrades = signal<PolymarketTrade[]>([]);
-  protected readonly copiedTraderAddress = signal<string | null>(null);
   protected readonly themeMode = signal<ThemeMode>('dark');
-  protected readonly whaleFeedMode = signal<WhaleFeedMode>('large');
+  protected readonly whaleStore = inject(WhaleStore);
 
   protected readonly isValidAddress = computed(() => this.isAddress(this.accountAddress().trim()));
   protected readonly isDarkTheme = computed(() => this.themeMode() === 'dark');
@@ -220,28 +204,11 @@ export class App implements OnInit {
         value: market.detail,
       })),
   );
-  protected readonly whaleMovements = computed((): WhaleMovement[] => {
-    return this.whaleTrades()
-      .map((trade) => this.tradeToWhaleMovement(trade))
-      .filter((movement) => movement.value > 0)
-      .sort((a, b) => b.value - a.value || this.numberOrZero(b.timestamp) - this.numberOrZero(a.timestamp))
-      .slice(0, 10);
-  });
-  protected readonly riskyWhaleMovements = computed((): WhaleMovement[] => {
-    return this.whaleTrades()
-      .map((trade) => this.tradeToWhaleMovement(trade))
-      .filter((movement) => movement.value > 0 && movement.price > 0 && movement.price <= 0.25)
-      .sort((a, b) => b.value - a.value || a.price - b.price || this.numberOrZero(b.timestamp) - this.numberOrZero(a.timestamp))
-      .slice(0, 10);
-  });
-  protected readonly selectedWhaleMovements = computed(() =>
-    this.whaleFeedMode() === 'risky' ? this.riskyWhaleMovements() : this.whaleMovements(),
-  );
   protected readonly selectedWhaleFeedTitle = computed(() =>
-    this.whaleFeedMode() === 'risky' ? this.t('riskyWhaleFeed') : this.t('whaleFeed'),
+    this.whaleStore.mode() === 'risky' ? this.t('riskyWhaleFeed') : this.t('whaleFeed'),
   );
   protected readonly selectedWhaleFeedSubtitle = computed(() =>
-    this.whaleFeedMode() === 'risky' ? this.t('riskyWhaleFeedSubtitle') : this.t('whaleFeedSubtitle'),
+    this.whaleStore.mode() === 'risky' ? this.t('riskyWhaleFeedSubtitle') : this.t('whaleFeedSubtitle'),
   );
 
   constructor(
@@ -252,7 +219,7 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     void this.loadMarketOverview();
-    void this.loadWhaleTrades();
+    void this.whaleStore.loadTrades();
   }
 
   protected t(key: Parameters<I18nService['t']>[0]): string {
@@ -265,10 +232,6 @@ export class App implements OnInit {
 
   protected toggleTheme(): void {
     this.themeMode.update((theme) => (theme === 'dark' ? 'light' : 'dark'));
-  }
-
-  protected setWhaleFeedMode(mode: WhaleFeedMode): void {
-    this.whaleFeedMode.set(mode);
   }
 
   protected async loadAccount(): Promise<void> {
@@ -318,43 +281,6 @@ export class App implements OnInit {
       this.marketOverviewError.set(error instanceof Error ? error.message : 'Could not load market overview.');
     } finally {
       this.marketOverviewLoading.set(false);
-    }
-  }
-
-  protected async loadWhaleTrades(): Promise<void> {
-    this.whaleLoading.set(true);
-    this.whaleError.set(null);
-
-    try {
-      this.whaleTrades.set(await this.accountApi.getRecentTrades(250));
-    } catch (error) {
-      this.whaleError.set(error instanceof Error ? error.message : 'Could not load whale data.');
-    } finally {
-      this.whaleLoading.set(false);
-    }
-  }
-
-  protected async copyTraderAddress(address: string): Promise<void> {
-    if (!address) {
-      return;
-    }
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(address);
-      } else {
-        this.copyTextFallback(address);
-      }
-      this.copiedTraderAddress.set(address);
-      this.whaleError.set(null);
-    } catch {
-      try {
-        this.copyTextFallback(address);
-        this.copiedTraderAddress.set(address);
-        this.whaleError.set(null);
-      } catch {
-        this.whaleError.set(this.t('copyFailed'));
-      }
     }
   }
 
@@ -479,45 +405,6 @@ export class App implements OnInit {
 
   private numberOrZero(value: number | null | undefined): number {
     return typeof value === 'number' && !Number.isNaN(value) ? value : 0;
-  }
-
-  private tradeValue(trade: PolymarketTrade): number {
-    return this.numberOrZero(trade.usdcSize) || this.numberOrZero(trade.size) * this.numberOrZero(trade.price);
-  }
-
-  private tradeToWhaleMovement(trade: PolymarketTrade): WhaleMovement {
-    const value = this.tradeValue(trade);
-    const address = trade.proxyWallet ?? '';
-
-    return {
-      address,
-      name: trade.name || trade.pseudonym || this.shortAddress(address),
-      title: trade.title || trade.slug || 'Polymarket market',
-      detail: `${trade.side || 'Trade'} ${trade.outcome || ''} · ${this.formatPrice(trade.price)} · ${this.formatNumber(trade.size)} shares`,
-      value,
-      price: this.numberOrZero(trade.price),
-      timestamp: trade.timestamp ?? null,
-      isNegative: trade.side?.toLowerCase() === 'sell',
-      url: this.polymarketUrl(trade.slug),
-    };
-  }
-
-  private copyTextFallback(value: string): void {
-    const textarea = document.createElement('textarea');
-    textarea.value = value;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.left = '-9999px';
-    document.body.appendChild(textarea);
-    textarea.focus();
-    textarea.select();
-
-    const copied = document.execCommand('copy');
-    document.body.removeChild(textarea);
-
-    if (!copied) {
-      throw new Error('Copy command failed.');
-    }
   }
 
   private parseStringArray(value: string): string[] {

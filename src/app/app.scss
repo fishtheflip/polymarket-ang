@@ -178,6 +178,25 @@ mat-card-subtitle,
   display: block;
 }
 
+.profile-tab-label,
+.profile-glow-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-tab-label {
+  gap: 0.4rem;
+}
+
+.profile-tab-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--app-primary);
+  box-shadow: 0 0 0.6rem rgba(0, 92, 187, 0.45);
+}
+
 .tab-panel {
   display: grid;
   gap: 1.25rem;
@@ -208,6 +227,30 @@ mat-card-subtitle,
   padding: 0.8rem;
   color: var(--app-warning-text);
   background: var(--app-warning-bg);
+}
+
+.profile-shell-card {
+  background: radial-gradient(circle at 2rem 2rem, rgba(0, 92, 187, 0.22), transparent 18rem), var(--app-surface);
+}
+
+.profile-glow-avatar {
+  color: var(--app-primary-text);
+  background: linear-gradient(135deg, var(--app-primary), var(--app-primary-strong));
+  box-shadow: 0 0 1rem rgba(0, 92, 187, 0.3);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.85rem;
 }
 
 .account-results {
