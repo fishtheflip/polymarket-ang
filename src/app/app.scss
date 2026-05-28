@@ -253,6 +253,20 @@ mat-card-subtitle,
   gap: 0.85rem;
 }
 
+.profile-dashboard,
+.profile-summary {
+  display: grid;
+  gap: 1rem;
+}
+
+.profile-summary {
+  justify-items: start;
+}
+
+.profile-settings-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .account-results {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(22rem, 1.2fr);
@@ -606,6 +620,74 @@ mat-card-header .compact-icon-button {
   background: var(--app-primary);
 }
 
+.side-filter-toggle {
+  display: inline-flex;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  border: 1px solid var(--app-border);
+  border-radius: 0.55rem;
+  background: var(--app-surface-muted);
+}
+
+.side-filter-toggle button {
+  min-width: 4.25rem;
+  height: 1.9rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: var(--app-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.side-filter-toggle .active-side-filter {
+  color: var(--app-primary-text);
+  background: var(--app-primary);
+}
+
+.market-watch-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.market-watch-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.watch-panel {
+  display: grid;
+  align-content: start;
+  gap: 0.75rem;
+  border-radius: 0.65rem;
+  padding: 1rem;
+  background: var(--app-surface-muted);
+}
+
+.participant-row,
+.compact-trade-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.compact-trade-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.participant-row p,
+.compact-trade-row p {
+  margin: 0;
+  color: var(--app-muted);
+}
+
 .market-list {
   display: grid;
   gap: 1rem;
@@ -719,10 +801,10 @@ mat-card-header .compact-icon-button {
   min-width: 0;
 }
 
-.copy-trader-button {
+.copy-trader-button,
+.copy-market-slug-button {
   width: 1.65rem;
   height: 1.65rem;
-  border-radius: 0.35rem;
 }
 
 .whale-feed-card {
@@ -882,9 +964,13 @@ mat-card-header .compact-icon-button {
   .account-results,
   .account-metrics,
   .account-detail-grid,
+  .auth-grid,
   .charts-grid,
   .donut-card mat-card-content,
-  .detail-list {
+  .detail-list,
+  .market-watch-form,
+  .market-watch-grid,
+  .profile-settings-list {
     grid-template-columns: 1fr;
   }
 
@@ -897,6 +983,8 @@ mat-card-header .compact-icon-button {
   .trade-row,
   .market-row,
   .market-odds,
+  .compact-trade-row,
+  .participant-row,
   .whale-move {
     align-items: stretch;
     flex-direction: column;

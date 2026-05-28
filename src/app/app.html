@@ -42,7 +42,13 @@
   </mat-toolbar>
 
   <main class="workspace">
-    <mat-tab-group class="content-tabs" mat-stretch-tabs="false" animationDuration="180ms">
+    <mat-tab-group
+      class="content-tabs"
+      mat-stretch-tabs="false"
+      animationDuration="180ms"
+      [selectedIndex]="selectedTabIndex()"
+      (selectedIndexChange)="selectedTabIndex.set($event)"
+    >
       <mat-tab [label]="t('account')">
         <section class="tab-panel">
           <mat-card class="account-card" appearance="outlined">
@@ -57,10 +63,10 @@
                   <mat-label>{{ t('inputLabel') }}</mat-label>
                   <input
                     matInput
-                    [value]="accountAddress()"
+                    [value]="accountStore.address()"
                     placeholder="0x..."
                     spellcheck="false"
-                    (input)="accountAddress.set($any($event.target).value)"
+                    (input)="accountStore.setAddress($any($event.target).value)"
                     (keyup.enter)="loadAccount()"
                   />
                   <mat-hint>{{ t('enterAddressHint') }}</mat-hint>
@@ -70,26 +76,26 @@
                   mat-flat-button
                   color="primary"
                   type="button"
-                  [disabled]="accountLoading() || !isValidAddress()"
+                  [disabled]="accountStore.loading() || !accountStore.isValidAddress()"
                   (click)="loadAccount()"
                 >
-                  <mat-icon>{{ accountLoading() ? 'hourglass_top' : 'analytics' }}</mat-icon>
-                  {{ accountLoading() ? t('loading') : t('loadAnalytics') }}
+                  <mat-icon>{{ accountStore.loading() ? 'hourglass_top' : 'analytics' }}</mat-icon>
+                  {{ accountStore.loading() ? t('loading') : t('loadAnalytics') }}
                 </button>
               </div>
 
-              @if (accountError()) {
+              @if (accountStore.error()) {
                 <div class="account-error">
                   <mat-icon>error</mat-icon>
-                  <span>{{ accountError() }}</span>
+                  <span>{{ accountStore.error() }}</span>
                 </div>
               }
 
-              @if (loadedAddress() && !accountLoading()) {
+              @if (accountStore.loadedAddress() && !accountStore.loading()) {
                 <section class="account-results" aria-label="Loaded Polymarket account analytics">
                   <div class="account-profile">
-                    @if (profile()?.profileImage) {
-                      <img [src]="profile()?.profileImage" alt="" />
+                    @if (accountStore.profile()?.profileImage) {
+                      <img [src]="accountStore.profile()?.profileImage" alt="" />
                     } @else {
                       <span class="profile-fallback">
                         <mat-icon>person</mat-icon>
@@ -98,35 +104,35 @@
 
                     <div>
                       <span class="section-label">{{ t('loadedAccount') }}</span>
-                      <h2>{{ displayName() }}</h2>
-                      <p>{{ shortAddress(loadedAddress()) }}</p>
+                      <h2>{{ accountStore.displayName() }}</h2>
+                      <p>{{ shortAddress(accountStore.loadedAddress()) }}</p>
                     </div>
                   </div>
 
                   <div class="account-metrics">
                     <div>
                       <span>{{ t('currentValue') }}</span>
-                      <strong>{{ formatCurrency(currentValue()) }}</strong>
+                      <strong>{{ formatCurrency(accountStore.currentValue()) }}</strong>
                     </div>
                     <div>
                       <span>{{ t('initialValue') }}</span>
-                      <strong>{{ formatCurrency(initialValue()) }}</strong>
+                      <strong>{{ formatCurrency(accountStore.initialValue()) }}</strong>
                     </div>
                     <div>
                       <span>{{ t('openPnl') }}</span>
-                      <strong [class.negative-value]="openPnl() < 0">{{ formatCurrency(openPnl()) }}</strong>
+                      <strong [class.negative-value]="accountStore.openPnl() < 0">{{ formatCurrency(accountStore.openPnl()) }}</strong>
                     </div>
                     <div>
                       <span>{{ t('realizedPnl') }}</span>
-                      <strong [class.negative-value]="realizedPnl() < 0">{{ formatCurrency(realizedPnl()) }}</strong>
+                      <strong [class.negative-value]="accountStore.realizedPnl() < 0">{{ formatCurrency(accountStore.realizedPnl()) }}</strong>
                     </div>
                     <div>
                       <span>{{ t('openPositions') }}</span>
-                      <strong>{{ positions().length }}</strong>
+                      <strong>{{ accountStore.positions().length }}</strong>
                     </div>
                     <div>
                       <span>{{ t('marketsTraded') }}</span>
-                      <strong>{{ tradedMarkets() ?? '--' }}</strong>
+                      <strong>{{ accountStore.tradedMarkets() ?? '--' }}</strong>
                     </div>
                   </div>
                 </section>
@@ -134,7 +140,7 @@
             </mat-card-content>
           </mat-card>
 
-          @if (loadedAddress() && !accountLoading()) {
+          @if (accountStore.loadedAddress() && !accountStore.loading()) {
             <section class="account-detail-grid">
               <mat-card class="profile-card" appearance="outlined">
                 <mat-card-header>
@@ -144,23 +150,23 @@
                 <mat-card-content class="detail-list">
                   <div>
                     <span>{{ t('name') }}</span>
-                    <strong>{{ profile()?.name || '--' }}</strong>
+                    <strong>{{ accountStore.profile()?.name || '--' }}</strong>
                   </div>
                   <div>
                     <span>{{ t('pseudonym') }}</span>
-                    <strong>{{ profile()?.pseudonym || '--' }}</strong>
+                    <strong>{{ accountStore.profile()?.pseudonym || '--' }}</strong>
                   </div>
                   <div>
                     <span>{{ t('proxyWallet') }}</span>
-                    <strong>{{ shortAddress(profile()?.proxyWallet ?? loadedAddress()) }}</strong>
+                    <strong>{{ shortAddress(accountStore.profile()?.proxyWallet ?? accountStore.loadedAddress()) }}</strong>
                   </div>
                   <div>
                     <span>{{ t('xUsername') }}</span>
-                    <strong>{{ profile()?.xUsername || '--' }}</strong>
+                    <strong>{{ accountStore.profile()?.xUsername || '--' }}</strong>
                   </div>
                   <div>
                     <span>{{ t('verified') }}</span>
-                    <strong>{{ profile()?.verifiedBadge ? t('yes') : t('no') }}</strong>
+                    <strong>{{ accountStore.profile()?.verifiedBadge ? t('yes') : t('no') }}</strong>
                   </div>
                 </mat-card-content>
               </mat-card>
@@ -219,8 +225,8 @@
                 </mat-card-header>
 
                 <mat-card-content class="position-list">
-                  @if (topPositions().length) {
-                    @for (position of topPositions(); track position.conditionId + position.asset) {
+                  @if (accountStore.topPositions().length) {
+                    @for (position of accountStore.topPositions(); track position.conditionId + position.asset) {
                       <article class="position-row expanded">
                         <div>
                           <h2>{{ position.title }}</h2>
@@ -255,8 +261,8 @@
                   <mat-card-subtitle>{{ t('closedPositionsSubtitle') }}</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content class="position-list">
-                  @if (topClosedPositions().length) {
-                    @for (position of topClosedPositions(); track position.conditionId + position.asset) {
+                  @if (accountStore.topClosedPositions().length) {
+                    @for (position of accountStore.topClosedPositions(); track position.conditionId + position.asset) {
                       <article class="position-row">
                         <div>
                           <h2>{{ position.title }}</h2>
@@ -283,8 +289,8 @@
                   <mat-card-subtitle>{{ t('accountActivitySubtitle') }}</mat-card-subtitle>
                 </mat-card-header>
                 <mat-list>
-                  @if (recentActivity().length) {
-                    @for (item of recentActivity(); track item.transactionHash || item.timestamp) {
+                  @if (accountStore.recentActivity().length) {
+                    @for (item of accountStore.recentActivity(); track item.transactionHash || item.timestamp) {
                       <mat-list-item>
                         <mat-icon matListItemIcon>history</mat-icon>
                         <span matListItemTitle>{{ item.type || item.side || 'Activity' }}</span>
@@ -304,8 +310,8 @@
                   <mat-card-subtitle>{{ t('latestTradesSubtitle') }}</mat-card-subtitle>
                 </mat-card-header>
                 <mat-card-content class="trade-list">
-                  @if (recentTrades().length) {
-                    @for (trade of recentTrades(); track trade.transactionHash || trade.timestamp) {
+                  @if (accountStore.recentTrades().length) {
+                    @for (trade of accountStore.recentTrades(); track trade.transactionHash || trade.timestamp) {
                       <article class="trade-row">
                         <div>
                           <strong>{{ trade.side || 'Trade' }} {{ trade.outcome || '' }}</strong>
@@ -330,15 +336,15 @@
 
       <mat-tab [label]="t('marketOverview')">
         <section class="tab-panel">
-          @if (marketOverviewError()) {
+          @if (marketStore.error()) {
             <div class="account-error">
               <mat-icon>error</mat-icon>
-              <span>{{ marketOverviewError() }}</span>
+              <span>{{ marketStore.error() }}</span>
             </div>
           }
 
           <section class="stats-grid" [attr.aria-label]="t('marketOverviewStats')">
-            @for (stat of marketStats(); track stat.label) {
+            @for (stat of marketStore.stats(); track stat.label) {
               <mat-card class="stat-card" appearance="outlined">
                 <mat-card-content>
                   <div class="stat-topline">
@@ -360,11 +366,11 @@
               </mat-card-header>
 
               <mat-card-content class="market-list">
-                @if (marketOverviewLoading()) {
+                @if (marketStore.loading()) {
                   <p class="empty-state">{{ t('marketOverviewLoading') }}</p>
                 }
 
-                @for (market of marketRows(); track market.title) {
+                @for (market of marketStore.rows(); track market.title) {
                   <article class="market-row">
                     <div class="market-main">
                       <mat-chip-set aria-label="Market category">
@@ -411,12 +417,12 @@
                 <div class="score-ring">
                   <div class="score-ring-center">
                     <span>{{ t('signalScore') }}</span>
-                    <strong>{{ marketSignalScore() }}</strong>
+                    <strong>{{ marketStore.signalScore() }}</strong>
                   </div>
                 </div>
 
                 <div class="allocation">
-                  @for (item of marketMix(); track item.label) {
+                  @for (item of marketStore.mix(); track item.label) {
                     <div>
                       <span>{{ item.label }}</span>
                       <strong>{{ item.percent }}%</strong>
@@ -433,7 +439,7 @@
               </mat-card-header>
 
               <mat-list>
-                @for (item of marketInsights(); track item.market) {
+                @for (item of marketStore.insights(); track item.market) {
                   <mat-list-item>
                     <mat-icon matListItemIcon>tips_and_updates</mat-icon>
                     <span matListItemTitle>{{ item.action }}</span>
@@ -482,6 +488,35 @@
             </mat-card-header>
 
             <mat-card-content class="whale-feed large-trade-feed">
+              @if (whaleStore.mode() === 'large') {
+                <div class="side-filter-toggle" role="group" [attr.aria-label]="t('whaleSideFilter')">
+                  <button
+                    type="button"
+                    [class.active-side-filter]="whaleStore.largeSideFilter() === 'all'"
+                    [attr.aria-label]="t('whaleSideFilter') + ': ' + t('allTrades')"
+                    (click)="whaleStore.setLargeSideFilter('all')"
+                  >
+                    {{ t('allTrades') }}
+                  </button>
+                  <button
+                    type="button"
+                    [class.active-side-filter]="whaleStore.largeSideFilter() === 'buy'"
+                    [attr.aria-label]="t('whaleSideFilter') + ': BUY'"
+                    (click)="whaleStore.setLargeSideFilter('buy')"
+                  >
+                    BUY
+                  </button>
+                  <button
+                    type="button"
+                    [class.active-side-filter]="whaleStore.largeSideFilter() === 'sell'"
+                    [attr.aria-label]="t('whaleSideFilter') + ': SELL'"
+                    (click)="whaleStore.setLargeSideFilter('sell')"
+                  >
+                    SELL
+                  </button>
+                </div>
+              }
+
               @if (whaleStore.copyFailed()) {
                 <div class="account-error">
                   <mat-icon>error</mat-icon>
@@ -519,7 +554,7 @@
                           class="compact-icon-button copy-trader-button"
                           type="button"
                           [attr.aria-label]="t('copyTrader') + ': ' + shortAddress(move.address)"
-                          [attr.title]="whaleStore.copiedTraderKey() === move.id ? t('copied') : t('copyTrader')"
+                          [attr.title]="whaleStore.copiedTraderKey() === move.id ? t('copied') : t('copyTraderTooltip') + ': ' + shortAddress(move.address)"
                           (click)="whaleStore.copyTraderAddress(move.address, move.id)"
                         >
                           <mat-icon>{{ whaleStore.copiedTraderKey() === move.id ? 'check' : 'content_copy' }}</mat-icon>
@@ -540,6 +575,17 @@
                         } @else {
                           {{ move.title }}
                         }
+                        @if (move.slug) {
+                          <button
+                            class="compact-icon-button copy-market-slug-button"
+                            type="button"
+                            [attr.aria-label]="t('copyMarketSlug') + ': ' + move.slug"
+                            [attr.title]="whaleStore.copiedMarketSlugKey() === move.id ? t('copied') : t('copyMarketSlugTooltip') + ': ' + move.slug"
+                            (click)="whaleStore.copyMarketSlug(move.slug, move.id)"
+                          >
+                            <mat-icon>{{ whaleStore.copiedMarketSlugKey() === move.id ? 'check' : 'content_copy' }}</mat-icon>
+                          </button>
+                        }
                       </h2>
                       <p>{{ move.detail }}</p>
                     </div>
@@ -558,6 +604,118 @@
         </section>
       </mat-tab>
 
+      <mat-tab [label]="t('marketWatcher')">
+        <section class="tab-panel">
+          <mat-card class="market-watcher-card" appearance="outlined">
+            <mat-card-header>
+              <mat-card-title>{{ t('marketWatcher') }}</mat-card-title>
+              <mat-card-subtitle>{{ t('marketWatcherSubtitle') }}</mat-card-subtitle>
+            </mat-card-header>
+
+            <mat-card-content class="market-watcher">
+              <div class="market-watch-form">
+                <mat-form-field appearance="outline">
+                  <mat-label>{{ t('marketLinkOrSlug') }}</mat-label>
+                  <input
+                    matInput
+                    [value]="whaleStore.watchedMarketInput()"
+                    placeholder="ethereum-up-or-down-may-26..."
+                    spellcheck="false"
+                    (input)="whaleStore.setWatchedMarketInput($any($event.target).value)"
+                    (keyup.enter)="whaleStore.watchMarket()"
+                  />
+                  <mat-hint>{{ t('marketWatcherHint') }}</mat-hint>
+                </mat-form-field>
+
+                <button mat-flat-button color="primary" type="button" (click)="whaleStore.watchMarket()">
+                  <mat-icon>radar</mat-icon>
+                  {{ t('trackMarket') }}
+                </button>
+
+                @if (whaleStore.watchedMarketSlug()) {
+                  <button mat-stroked-button type="button" (click)="whaleStore.clearWatchedMarket()">
+                    <mat-icon>close</mat-icon>
+                    {{ t('clear') }}
+                  </button>
+                }
+              </div>
+
+              @if (whaleStore.watchedMarketSlug()) {
+                <div class="watched-market-label">
+                  <span>{{ t('watchingMarket') }}</span>
+                  <strong>{{ whaleStore.watchedMarketSlug() }}</strong>
+                  <a
+                    class="market-link"
+                    [href]="'https://polymarket.com/market/' + whaleStore.watchedMarketSlug()"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [attr.aria-label]="t('openOnPolymarket')"
+                  >
+                    <mat-icon>open_in_new</mat-icon>
+                  </a>
+                </div>
+
+                <section class="market-watch-grid">
+                  <div class="watch-panel">
+                    <h3>{{ t('recentMarketTrades') }}</h3>
+                    @if (whaleStore.watchedMarketTrades().length) {
+                      @for (move of whaleStore.watchedMarketTrades().slice(0, 20); track move.id) {
+                        <article class="compact-trade-row">
+                          <mat-icon [class.negative-value]="move.isNegative">
+                            {{ move.isNegative ? 'south_west' : 'north_east' }}
+                          </mat-icon>
+                          <div>
+                            <strong>{{ move.name }} · {{ shortAddress(move.address) }}</strong>
+                            <p>{{ move.detail }}</p>
+                          </div>
+                          <div class="position-pnl">
+                            <strong [class.negative-value]="move.isNegative">{{ formatCurrency(move.value) }}</strong>
+                            <span>{{ move.timestamp ? formatDate(move.timestamp) : t('current') }}</span>
+                          </div>
+                        </article>
+                      }
+                    } @else {
+                      <p class="empty-state">{{ t('marketWatcherEmpty') }}</p>
+                    }
+                  </div>
+
+                  <div class="watch-panel">
+                    <h3>{{ t('topMarketParticipants') }}</h3>
+                    @if (whaleStore.watchedMarketParticipants().length) {
+                      @for (participant of whaleStore.watchedMarketParticipants(); track participant.id) {
+                        <article class="participant-row">
+                          <div>
+                            <div class="trader-line">
+                              <strong>{{ participant.name }} · {{ shortAddress(participant.address) }}</strong>
+                              <button
+                                class="compact-icon-button copy-trader-button"
+                                type="button"
+                                [attr.aria-label]="t('copyTrader') + ': ' + shortAddress(participant.address)"
+                                [attr.title]="whaleStore.copiedTraderKey() === participant.id ? t('copied') : t('copyTraderTooltip') + ': ' + shortAddress(participant.address)"
+                                (click)="whaleStore.copyTraderAddress(participant.address, participant.id)"
+                              >
+                                <mat-icon>{{ whaleStore.copiedTraderKey() === participant.id ? 'check' : 'content_copy' }}</mat-icon>
+                              </button>
+                            </div>
+                            <p>{{ participant.outcome }} · {{ participant.trades }} {{ t('tradesCount') }}</p>
+                          </div>
+                          <div class="position-pnl">
+                            <strong [class.negative-value]="participant.netValue < 0">{{ formatCurrency(participant.netValue) }}</strong>
+                            <span>{{ formatNumber(participant.netShares) }} shares</span>
+                          </div>
+                        </article>
+                      }
+                    } @else {
+                      <p class="empty-state">{{ t('marketWatcherEmpty') }}</p>
+                    }
+                  </div>
+                </section>
+              }
+            </mat-card-content>
+          </mat-card>
+        </section>
+      </mat-tab>
+
       <mat-tab>
         <ng-template mat-tab-label>
           <span class="profile-tab-label">
@@ -570,60 +728,167 @@
           <mat-card class="profile-shell-card" appearance="outlined">
             <mat-card-header>
               <span mat-card-avatar class="profile-glow-avatar">
-                PR
+                {{ profileStore.initials() }}
               </span>
               <mat-card-title>{{ t('profileShellTitle') }}</mat-card-title>
               <mat-card-subtitle>{{ t('profileShellSubtitle') }}</mat-card-subtitle>
             </mat-card-header>
           </mat-card>
 
-          <section class="auth-grid">
-            <mat-card class="auth-card" appearance="outlined">
-              <mat-card-header>
-                <mat-card-title>{{ t('profileAuth') }}</mat-card-title>
-                <mat-card-subtitle>{{ t('profileAuthSubtitle') }}</mat-card-subtitle>
-              </mat-card-header>
-              <mat-card-content class="auth-form">
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('profileEmail') }}</mat-label>
-                  <input matInput type="email" autocomplete="email" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('profilePassword') }}</mat-label>
-                  <input matInput type="password" autocomplete="current-password" />
-                </mat-form-field>
-                <button mat-flat-button color="primary" type="button" disabled>
-                  <mat-icon>lock</mat-icon>
-                  {{ t('signIn') }}
-                </button>
-              </mat-card-content>
-            </mat-card>
+          @if (profileStore.isAuthenticated()) {
+            <section class="profile-dashboard">
+              <mat-card class="profile-card" appearance="outlined">
+                <mat-card-header>
+                  <span mat-card-avatar class="profile-glow-avatar">
+                    {{ profileStore.initials() }}
+                  </span>
+                  <mat-card-title>{{ profileStore.user()?.username }}</mat-card-title>
+                  <mat-card-subtitle>{{ profileStore.user()?.email }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="profile-summary">
+                  <div class="detail-list profile-settings-list">
+                    <div>
+                      <span>{{ t('profileStatus') }}</span>
+                      <strong>{{ t('profileLocalOnly') }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('profileCreatedAt') }}</span>
+                      <strong>{{ formatDate(profileStore.user()?.createdAt) }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('profileLastLogin') }}</span>
+                      <strong>{{ formatDate(profileStore.user()?.lastLoginAt) }}</strong>
+                    </div>
+                  </div>
 
-            <mat-card class="auth-card" appearance="outlined">
-              <mat-card-header>
-                <mat-card-title>{{ t('profileRegister') }}</mat-card-title>
-                <mat-card-subtitle>{{ t('profileRegisterSubtitle') }}</mat-card-subtitle>
-              </mat-card-header>
-              <mat-card-content class="auth-form">
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('profileUsername') }}</mat-label>
-                  <input matInput autocomplete="username" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('profileEmail') }}</mat-label>
-                  <input matInput type="email" autocomplete="email" />
-                </mat-form-field>
-                <mat-form-field appearance="outline">
-                  <mat-label>{{ t('profilePassword') }}</mat-label>
-                  <input matInput type="password" autocomplete="new-password" />
-                </mat-form-field>
-                <button mat-flat-button color="primary" type="button" disabled>
-                  <mat-icon>person_add</mat-icon>
-                  {{ t('signUp') }}
-                </button>
-              </mat-card-content>
-            </mat-card>
-          </section>
+                  <button mat-stroked-button type="button" (click)="profileStore.logout()">
+                    <mat-icon>logout</mat-icon>
+                    {{ t('logout') }}
+                  </button>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="auth-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('profileSettings') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('profileSettingsSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content>
+                  <div class="detail-list profile-settings-list">
+                    <div>
+                      <span>{{ t('profileDefaultTheme') }}</span>
+                      <strong>{{ isDarkTheme() ? t('darkTheme') : t('lightTheme') }}</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('profileWhaleFilter') }}</span>
+                      <strong>$500 / 0.25</strong>
+                    </div>
+                    <div>
+                      <span>{{ t('profileDataMode') }}</span>
+                      <strong>{{ t('realTime') }}</strong>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </section>
+          } @else {
+            <section class="auth-grid">
+              <mat-card class="auth-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('profileAuth') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('profileAuthSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="auth-form">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('profileEmail') }}</mat-label>
+                    <input
+                      matInput
+                      type="email"
+                      autocomplete="email"
+                      [value]="profileStore.loginEmail()"
+                      (input)="profileStore.setLoginEmail($any($event.target).value)"
+                      (keyup.enter)="profileStore.login()"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('profilePassword') }}</mat-label>
+                    <input
+                      matInput
+                      type="password"
+                      autocomplete="current-password"
+                      [value]="profileStore.loginPassword()"
+                      (input)="profileStore.setLoginPassword($any($event.target).value)"
+                      (keyup.enter)="profileStore.login()"
+                    />
+                  </mat-form-field>
+                  <button mat-flat-button color="primary" type="button" (click)="profileStore.login()">
+                    <mat-icon>lock</mat-icon>
+                    {{ t('signIn') }}
+                  </button>
+                </mat-card-content>
+              </mat-card>
+
+              <mat-card class="auth-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('profileRegister') }}</mat-card-title>
+                  <mat-card-subtitle>{{ t('profileRegisterSubtitle') }}</mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="auth-form">
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('profileUsername') }}</mat-label>
+                    <input
+                      matInput
+                      autocomplete="username"
+                      [value]="profileStore.registerUsername()"
+                      (input)="profileStore.setRegisterUsername($any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('profileEmail') }}</mat-label>
+                    <input
+                      matInput
+                      type="email"
+                      autocomplete="email"
+                      [value]="profileStore.registerEmail()"
+                      (input)="profileStore.setRegisterEmail($any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('profilePassword') }}</mat-label>
+                    <input
+                      matInput
+                      type="password"
+                      autocomplete="new-password"
+                      [value]="profileStore.registerPassword()"
+                      (input)="profileStore.setRegisterPassword($any($event.target).value)"
+                    />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>{{ t('profileConfirmPassword') }}</mat-label>
+                    <input
+                      matInput
+                      type="password"
+                      autocomplete="new-password"
+                      [value]="profileStore.registerConfirmPassword()"
+                      (input)="profileStore.setRegisterConfirmPassword($any($event.target).value)"
+                      (keyup.enter)="profileStore.register()"
+                    />
+                  </mat-form-field>
+                  <button mat-flat-button color="primary" type="button" (click)="profileStore.register()">
+                    <mat-icon>person_add</mat-icon>
+                    {{ t('signUp') }}
+                  </button>
+                </mat-card-content>
+              </mat-card>
+            </section>
+
+            @if (profileStore.errorKey()) {
+              <div class="account-error">
+                <mat-icon>error</mat-icon>
+                <span>{{ t(profileStore.errorKey()!) }}</span>
+              </div>
+            }
+          }
         </section>
       </mat-tab>
     </mat-tab-group>

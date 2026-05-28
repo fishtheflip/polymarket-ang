@@ -12,13 +12,13 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import {
   PolymarketActivity,
-  PolymarketAccountService,
   PolymarketPosition,
-  PolymarketProfile,
   PolymarketTrade,
 } from './polymarket-account.service';
 import { I18nService, Language } from './i18n.service';
-import { GammaMarket, PolymarketMarketService } from './polymarket-market.service';
+import { AccountStore } from './state/account.store';
+import { MarketStore } from './state/market.store';
+import { ProfileStore } from './state/profile.store';
 import { WhaleStore } from './state/whale.store';
 
 type ThemeMode = 'light' | 'dark';
@@ -49,17 +49,6 @@ type DonutChart = {
   segments: DonutSegment[];
 };
 
-type MarketOverviewRow = {
-  title: string;
-  category: string;
-  url: string | null;
-  probability: number;
-  volume: string;
-  detail: string;
-  side: string;
-  liquidity: number;
-};
-
 @Component({
   selector: 'app-root',
   imports: [
@@ -79,43 +68,20 @@ type MarketOverviewRow = {
   styleUrl: './app.scss',
 })
 export class App implements OnInit {
-  protected readonly accountAddress = signal('');
-  protected readonly accountError = signal<string | null>(null);
-  protected readonly accountLoading = signal(false);
-  protected readonly loadedAddress = signal<string | null>(null);
-  protected readonly profile = signal<PolymarketProfile | null>(null);
-  protected readonly positions = signal<PolymarketPosition[]>([]);
-  protected readonly closedPositions = signal<PolymarketPosition[]>([]);
-  protected readonly activity = signal<PolymarketActivity[]>([]);
-  protected readonly trades = signal<PolymarketTrade[]>([]);
-  protected readonly tradedMarkets = signal<number | null>(null);
-  protected readonly positionValue = signal<number | null>(null);
   protected readonly chartTooltip = signal<ChartTooltip | null>(null);
-  protected readonly marketOverviewLoading = signal(false);
-  protected readonly marketOverviewError = signal<string | null>(null);
-  protected readonly marketOverviewMarkets = signal<GammaMarket[]>([]);
   protected readonly themeMode = signal<ThemeMode>('dark');
+  protected readonly accountStore = inject(AccountStore);
+  protected readonly marketStore = inject(MarketStore);
+  protected readonly profileStore = inject(ProfileStore);
   protected readonly whaleStore = inject(WhaleStore);
+  protected readonly selectedTabIndex = signal(0);
 
-  protected readonly isValidAddress = computed(() => this.isAddress(this.accountAddress().trim()));
   protected readonly isDarkTheme = computed(() => this.themeMode() === 'dark');
-  protected readonly currentValue = computed(
-    () => this.positionValue() ?? this.positions().reduce((total, position) => total + this.numberOrZero(position.currentValue), 0),
-  );
-  protected readonly initialValue = computed(() =>
-    this.positions().reduce((total, position) => total + this.numberOrZero(position.initialValue), 0),
-  );
-  protected readonly openPnl = computed(() =>
-    this.positions().reduce((total, position) => total + this.numberOrZero(position.cashPnl), 0),
-  );
-  protected readonly realizedPnl = computed(() =>
-    this.closedPositions().reduce((total, position) => total + this.numberOrZero(position.realizedPnl), 0),
-  );
   protected readonly currentPositionsChart = computed(() =>
     this.createDonutChart({
       title: this.t('currentPositionsMix'),
       subtitle: this.t('allocationByCurrentValue'),
-      items: this.positions(),
+      items: this.accountStore.positions(),
       valueAccessor: (position) => this.numberOrZero(position.currentValue),
       labelAccessor: (position) => position.title || this.t('position'),
       formatter: (value) => this.formatCurrency(value),
@@ -125,84 +91,9 @@ export class App implements OnInit {
     this.createPnlDonutChart({
       title: this.t('closedPositionsPnl'),
       subtitle: this.t('realizedPnlByMarket'),
-      items: this.closedPositions(),
+      items: this.accountStore.closedPositions(),
       labelAccessor: (position) => position.title || this.t('closedPositions'),
     }),
-  );
-  protected readonly marketRows = computed(() => {
-    const markets = this.marketOverviewMarkets();
-    const maxLiquidity = Math.max(...markets.map((market) => this.numberOrZero(market.liquidityNum)), 1);
-
-    return markets.slice(0, 10).map((market): MarketOverviewRow => {
-      const outcomes = this.parseStringArray(market.outcomes);
-      const prices = this.parseStringArray(market.outcomePrices).map(Number);
-      const leadingIndex = prices[1] > prices[0] ? 1 : 0;
-      const probability = Math.round(this.numberOrZero(prices[leadingIndex]) * 100);
-      const liquidity = Math.round((this.numberOrZero(market.liquidityNum) / maxLiquidity) * 100);
-
-      return {
-        title: market.question,
-        category: this.marketCategory(market),
-        url: this.marketUrl(market),
-        probability,
-        volume: this.formatCompactCurrency(this.numberOrZero(market.volumeNum)),
-        detail: `${this.formatCompactCurrency(this.numberOrZero(market.volume24hr))} 24h`,
-        side: outcomes[leadingIndex] ?? 'Yes',
-        liquidity,
-      };
-    });
-  });
-  protected readonly marketStats = computed(() => {
-    const markets = this.marketOverviewMarkets();
-    const totalVolume = markets.reduce((total, market) => total + this.numberOrZero(market.volumeNum), 0);
-    const volume24h = markets.reduce((total, market) => total + this.numberOrZero(market.volume24hr), 0);
-    const avgLiquidity = markets.length
-      ? markets.reduce((total, market) => total + this.numberOrZero(market.liquidityNum), 0) / markets.length
-      : 0;
-
-    return [
-      { label: this.t('trackedVolume'), value: this.formatCompactCurrency(totalVolume), delta: 'Gamma API', icon: 'monitoring' },
-      { label: this.t('activeMarkets'), value: String(markets.length), delta: this.t('activeOpen'), icon: 'stacked_line_chart' },
-      { label: this.t('twentyFourHourVolume'), value: this.formatCompactCurrency(volume24h), delta: this.t('realTime'), icon: 'query_stats' },
-      { label: this.t('avgLiquidity'), value: this.formatCompactCurrency(avgLiquidity), delta: 'Gamma API', icon: 'notifications_active' },
-    ];
-  });
-  protected readonly marketMix = computed(() => {
-    const totals = new Map<string, number>();
-
-    this.marketOverviewMarkets().forEach((market) => {
-      const category = this.marketCategory(market);
-      totals.set(category, (totals.get(category) ?? 0) + this.numberOrZero(market.volume24hr));
-    });
-
-    const rows = [...totals.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 4);
-    const total = rows.reduce((sum, row) => sum + row.value, 0);
-
-    return rows.map((row) => ({
-      label: row.label,
-      percent: total > 0 ? Math.round((row.value / total) * 100) : 0,
-    }));
-  });
-  protected readonly marketSignalScore = computed(() => {
-    const rows = this.marketRows();
-
-    if (!rows.length) {
-      return 0;
-    }
-
-    return Math.round(rows.reduce((total, row) => total + row.probability, 0) / rows.length);
-  });
-  protected readonly marketInsights = computed(() =>
-    this.marketRows()
-      .slice(0, 3)
-      .map((market) => ({
-        action: `${market.probability}% ${market.side}`,
-        market: market.title,
-        value: market.detail,
-      })),
   );
   protected readonly selectedWhaleFeedTitle = computed(() =>
     this.whaleStore.mode() === 'risky' ? this.t('riskyWhaleFeed') : this.t('whaleFeed'),
@@ -211,14 +102,11 @@ export class App implements OnInit {
     this.whaleStore.mode() === 'risky' ? this.t('riskyWhaleFeedSubtitle') : this.t('whaleFeedSubtitle'),
   );
 
-  constructor(
-    private readonly accountApi: PolymarketAccountService,
-    private readonly marketApi: PolymarketMarketService,
-    protected readonly i18n: I18nService,
-  ) {}
+  constructor(protected readonly i18n: I18nService) {}
 
   ngOnInit(): void {
-    void this.loadMarketOverview();
+    this.profileStore.hydrate();
+    void this.marketStore.loadMarkets();
     void this.whaleStore.loadTrades();
   }
 
@@ -235,75 +123,12 @@ export class App implements OnInit {
   }
 
   protected async loadAccount(): Promise<void> {
-    const address = this.accountAddress().trim();
-
-    if (!this.isAddress(address)) {
-      this.accountError.set(this.t('useValidAddress'));
+    if (!this.accountStore.isValidAddress()) {
+      this.accountStore.setError(this.t('useValidAddress'));
       return;
     }
 
-    this.accountLoading.set(true);
-    this.accountError.set(null);
-
-    try {
-      const [profile, positions, closedPositions, activity, trades, tradedMarkets, value] = await Promise.all([
-        this.resolveOrDefault(this.accountApi.getProfile(address), null),
-        this.resolveOrDefault(this.accountApi.getPositions(address), []),
-        this.resolveOrDefault(this.accountApi.getClosedPositions(address), []),
-        this.resolveOrDefault(this.accountApi.getActivity(address), []),
-        this.resolveOrDefault(this.accountApi.getTrades(address), []),
-        this.resolveOrDefault(this.accountApi.getTradedMarketsCount(address), null),
-        this.resolveOrDefault(this.accountApi.getPositionValue(address), null),
-      ]);
-
-      this.profile.set(profile);
-      this.positions.set(positions);
-      this.closedPositions.set(closedPositions);
-      this.activity.set(activity);
-      this.trades.set(trades);
-      this.tradedMarkets.set(tradedMarkets);
-      this.positionValue.set(value);
-      this.loadedAddress.set(address);
-    } catch (error) {
-      this.accountError.set(error instanceof Error ? error.message : 'Could not load account data.');
-    } finally {
-      this.accountLoading.set(false);
-    }
-  }
-
-  protected async loadMarketOverview(): Promise<void> {
-    this.marketOverviewLoading.set(true);
-    this.marketOverviewError.set(null);
-
-    try {
-      this.marketOverviewMarkets.set(await this.marketApi.getTopMarkets());
-    } catch (error) {
-      this.marketOverviewError.set(error instanceof Error ? error.message : 'Could not load market overview.');
-    } finally {
-      this.marketOverviewLoading.set(false);
-    }
-  }
-
-  protected topPositions(): PolymarketPosition[] {
-    return this.positions().slice(0, 10);
-  }
-
-  protected topClosedPositions(): PolymarketPosition[] {
-    return this.closedPositions().slice(0, 5);
-  }
-
-  protected recentActivity(): PolymarketActivity[] {
-    return this.activity().slice(0, 8);
-  }
-
-  protected recentTrades(): PolymarketTrade[] {
-    return this.trades().slice(0, 8);
-  }
-
-  protected displayName(): string {
-    const profile = this.profile();
-
-    return profile?.name || profile?.pseudonym || 'Polymarket account';
+    await this.accountStore.loadAccount();
   }
 
   protected shortAddress(address: string | null): string {
@@ -323,19 +148,6 @@ export class App implements OnInit {
       style: 'currency',
       currency: 'USD',
       maximumFractionDigits: 2,
-    }).format(value);
-  }
-
-  protected formatCompactCurrency(value: number | null | undefined): string {
-    if (typeof value !== 'number' || Number.isNaN(value)) {
-      return '--';
-    }
-
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      notation: 'compact',
-      maximumFractionDigits: 1,
     }).format(value);
   }
 
@@ -399,46 +211,8 @@ export class App implements OnInit {
     this.chartTooltip.set(null);
   }
 
-  private isAddress(value: string): boolean {
-    return /^0x[a-fA-F0-9]{40}$/.test(value);
-  }
-
   private numberOrZero(value: number | null | undefined): number {
     return typeof value === 'number' && !Number.isNaN(value) ? value : 0;
-  }
-
-  private parseStringArray(value: string): string[] {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed.map(String) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private marketCategory(market: GammaMarket): string {
-    return (
-      market.tags?.[0]?.label ||
-      market.events?.[0]?.tags?.[0]?.label ||
-      market.events?.[0]?.category ||
-      'Other'
-    );
-  }
-
-  private marketUrl(market: GammaMarket): string | null {
-    return market.slug ? `https://polymarket.com/market/${market.slug}` : null;
-  }
-
-  private polymarketUrl(slug: string | null | undefined): string | null {
-    return slug ? `https://polymarket.com/market/${slug}` : null;
-  }
-
-  private async resolveOrDefault<T>(promise: Promise<T>, fallback: T): Promise<T> {
-    try {
-      return await promise;
-    } catch {
-      return fallback;
-    }
   }
 
   private createDonutChart(config: {

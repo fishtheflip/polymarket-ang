@@ -119,7 +119,8 @@ export class PolymarketAccountService {
 
   async getRecentTrades(limit = 200): Promise<PolymarketTrade[]> {
     const pageSize = 500;
-    const pages = Math.ceil(limit / pageSize);
+    const boundedLimit = Math.min(limit, 3500);
+    const pages = Math.ceil(boundedLimit / pageSize);
     const responses: PolymarketTrade[][] = [];
 
     for (let index = 0; index < pages; index += 1) {
@@ -135,7 +136,7 @@ export class PolymarketAccountService {
       responses.push(page);
     }
 
-    return this.dedupeTrades(responses.flat()).slice(0, limit);
+    return this.dedupeTrades(responses.flat()).slice(0, boundedLimit);
   }
 
   async getTradedMarketsCount(address: string): Promise<number | null> {
