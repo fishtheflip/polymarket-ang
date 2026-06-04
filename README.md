@@ -2,6 +2,10 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.12.
 
+## UI stack
+
+The application uses PrimeNG with the Aura preset and Tailwind CSS v4 with the official `tailwindcss-primeui` integration. Tailwind utilities are loaded through `src/tailwind.css`.
+
 ## Supabase authentication
 
 Create a Supabase project, enable Email authentication, then create a local runtime config:

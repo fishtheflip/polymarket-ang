@@ -1,15 +1,10 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatListModule } from '@angular/material/list';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatToolbarModule } from '@angular/material/toolbar';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { ProgressBarModule } from 'primeng/progressbar';
+import { TabsModule } from 'primeng/tabs';
+import { TagModule } from 'primeng/tag';
 import {
   PolymarketActivity,
   PolymarketPosition,
@@ -52,19 +47,7 @@ type DonutChart = {
 
 @Component({
   selector: 'app-root',
-  imports: [
-    MatButtonModule,
-    MatCardModule,
-    MatChipsModule,
-    MatDividerModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatListModule,
-    MatProgressBarModule,
-    MatTabsModule,
-    MatToolbarModule,
-  ],
+  imports: [ButtonModule, CardModule, InputTextModule, ProgressBarModule, TabsModule, TagModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -101,7 +84,9 @@ export class App implements OnInit {
     this.whaleStore.mode() === 'risky' ? this.t('riskyWhaleFeed') : this.t('whaleFeed'),
   );
   protected readonly selectedWhaleFeedSubtitle = computed(() =>
-    this.whaleStore.mode() === 'risky' ? this.t('riskyWhaleFeedSubtitle') : this.t('whaleFeedSubtitle'),
+    this.whaleStore.mode() === 'risky'
+      ? this.t('riskyWhaleFeedSubtitle')
+      : this.t('whaleFeedSubtitle'),
   );
 
   constructor(protected readonly i18n: I18nService) {}
@@ -123,6 +108,29 @@ export class App implements OnInit {
 
   protected toggleTheme(): void {
     this.themeMode.update((theme) => (theme === 'dark' ? 'light' : 'dark'));
+  }
+
+  protected primeIcon(icon: string): string {
+    const icons: Record<string, string> = {
+      analytics: 'pi-chart-line',
+      check: 'pi-check',
+      content_copy: 'pi-copy',
+      dark_mode: 'pi-moon',
+      hourglass_top: 'pi-spin pi-spinner',
+      light_mode: 'pi-sun',
+      lock: 'pi-lock',
+      logout: 'pi-sign-out',
+      monitoring: 'pi-chart-line',
+      notifications_active: 'pi-bell',
+      person_add: 'pi-user-plus',
+      query_stats: 'pi-chart-bar',
+      refresh: 'pi-refresh',
+      south_west: 'pi-arrow-down-left',
+      stacked_line_chart: 'pi-chart-scatter',
+      north_east: 'pi-arrow-up-right',
+    };
+
+    return icons[icon] ?? 'pi-circle';
   }
 
   protected async loadAccount(): Promise<void> {
@@ -356,7 +364,12 @@ export class App implements OnInit {
     ].join(' ');
   }
 
-  private polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number): { x: string; y: string } {
+  private polarToCartesian(
+    centerX: number,
+    centerY: number,
+    radius: number,
+    angleInDegrees: number,
+  ): { x: string; y: string } {
     const angleInRadians = (angleInDegrees * Math.PI) / 180;
 
     return {

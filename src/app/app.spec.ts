@@ -3,6 +3,12 @@ import { App } from './app';
 import { PolymarketAccountService, PolymarketTrade } from './polymarket-account.service';
 import { PolymarketMarketService } from './polymarket-market.service';
 
+globalThis.ResizeObserver ??= class {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+};
+
 const whaleTrades: PolymarketTrade[] = [
   {
     proxyWallet: '0x1111111111111111111111111111111111111111',
@@ -83,9 +89,9 @@ describe('App', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const tabText = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]')).map((tab) =>
-      tab.textContent?.trim(),
-    );
+    const tabText = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[role="tab"]'),
+    ).map((tab) => tab.textContent?.trim());
 
     expect(tabText).toEqual(['Аккаунт', 'Обзор рынков', 'Киты', 'Market Watcher', 'Профиль']);
   });
@@ -94,7 +100,9 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     const nativeElement = fixture.nativeElement as HTMLElement;
 
-    (fixture.componentInstance as unknown as { selectedTabIndex: { set: (value: number) => void } }).selectedTabIndex.set(2);
+    (
+      fixture.componentInstance as unknown as { selectedTabIndex: { set: (value: number) => void } }
+    ).selectedTabIndex.set(2);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -127,7 +135,10 @@ function buttonByLabel(root: HTMLElement, label: string): HTMLElement {
   return button;
 }
 
-async function clickAndStabilize(fixture: ReturnType<typeof TestBed.createComponent<App>>, element: HTMLElement): Promise<void> {
+async function clickAndStabilize(
+  fixture: ReturnType<typeof TestBed.createComponent<App>>,
+  element: HTMLElement,
+): Promise<void> {
   element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   fixture.detectChanges();
   await fixture.whenStable();
@@ -135,5 +146,7 @@ async function clickAndStabilize(fixture: ReturnType<typeof TestBed.createCompon
 }
 
 function visibleWhaleRows(root: HTMLElement): HTMLElement[] {
-  return Array.from(root.querySelectorAll<HTMLElement>('.whale-move')).filter((row) => row.textContent?.trim());
+  return Array.from(root.querySelectorAll<HTMLElement>('.whale-move')).filter((row) =>
+    row.textContent?.trim(),
+  );
 }
