@@ -31,6 +31,11 @@ yarn-error.log
 
 # Miscellaneous
 /.angular/cache
+.env
+.env.*
+!.env.example
+**/supabase.config.local.ts
+/public/supabase-config.js
 .sass-cache/
 /connect.lock
 /coverage

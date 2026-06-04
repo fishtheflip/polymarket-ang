@@ -749,7 +749,7 @@
                   <div class="detail-list profile-settings-list">
                     <div>
                       <span>{{ t('profileStatus') }}</span>
-                      <strong>{{ t('profileLocalOnly') }}</strong>
+                      <strong>{{ t('profileSupabaseConnected') }}</strong>
                     </div>
                     <div>
                       <span>{{ t('profileCreatedAt') }}</span>
@@ -761,9 +761,9 @@
                     </div>
                   </div>
 
-                  <button mat-stroked-button type="button" (click)="profileStore.logout()">
-                    <mat-icon>logout</mat-icon>
-                    {{ t('logout') }}
+                  <button mat-stroked-button type="button" [disabled]="profileStore.loading()" (click)="profileStore.logout()">
+                    <mat-icon>{{ profileStore.loading() ? 'hourglass_top' : 'logout' }}</mat-icon>
+                    {{ profileStore.loading() ? t('loading') : t('logout') }}
                   </button>
                 </mat-card-content>
               </mat-card>
@@ -790,8 +790,89 @@
                   </div>
                 </mat-card-content>
               </mat-card>
+
+              <mat-card class="saved-trades-card" appearance="outlined">
+                <mat-card-header>
+                  <mat-card-title>{{ t('savedTrades') }}</mat-card-title>
+                  <mat-card-subtitle>
+                    {{ t('savedTradesSubtitle') }} · {{ savedTradesStore.trades().length }}/20
+                  </mat-card-subtitle>
+                </mat-card-header>
+                <mat-card-content class="saved-trades-content">
+                  <div class="saved-trade-form">
+                    <mat-form-field appearance="outline">
+                      <mat-label>{{ t('savedTradeLink') }}</mat-label>
+                      <input
+                        matInput
+                        type="url"
+                        placeholder="https://polymarket.com/event/..."
+                        [value]="savedTradesStore.linkInput()"
+                        (input)="savedTradesStore.setLinkInput($any($event.target).value)"
+                        (keyup.enter)="savedTradesStore.save()"
+                      />
+                      <mat-hint>{{ t('savedTradesRemaining') }}: {{ savedTradesStore.remainingSlots() }}</mat-hint>
+                    </mat-form-field>
+
+                    <button
+                      mat-flat-button
+                      color="primary"
+                      type="button"
+                      [disabled]="savedTradesStore.loading() || savedTradesStore.isAtLimit()"
+                      (click)="savedTradesStore.save()"
+                    >
+                      <mat-icon>{{ savedTradesStore.loading() ? 'hourglass_top' : 'bookmark_add' }}</mat-icon>
+                      {{ t('saveTrade') }}
+                    </button>
+                  </div>
+
+                  @if (savedTradesStore.errorKey()) {
+                    <div class="account-error">
+                      <mat-icon>error</mat-icon>
+                      <span>{{ t(savedTradesStore.errorKey()!) }}</span>
+                    </div>
+                  }
+
+                  @if (savedTradesStore.trades().length) {
+                    <div class="saved-trades-list">
+                      @for (trade of savedTradesStore.trades(); track trade.id) {
+                        <article class="saved-trade-row">
+                          <div>
+                            <a class="market-link" [href]="trade.url" target="_blank" rel="noopener noreferrer">
+                              <strong>{{ trade.title }}</strong>
+                              <mat-icon>open_in_new</mat-icon>
+                            </a>
+                            <span>{{ formatDate(trade.createdAt) }}</span>
+                          </div>
+                          <button
+                            class="compact-icon-button"
+                            type="button"
+                            [disabled]="savedTradesStore.loading()"
+                            [attr.aria-label]="t('deleteSavedTrade') + ': ' + trade.title"
+                            [attr.title]="t('deleteSavedTrade')"
+                            (click)="savedTradesStore.remove(trade.id)"
+                          >
+                            <mat-icon>delete</mat-icon>
+                          </button>
+                        </article>
+                      }
+                    </div>
+                  } @else if (!savedTradesStore.loading()) {
+                    <p class="empty-state">{{ t('savedTradesEmpty') }}</p>
+                  }
+                </mat-card-content>
+              </mat-card>
             </section>
           } @else {
+            @if (!profileStore.backendConfigured()) {
+              <div class="configuration-notice">
+                <mat-icon>database</mat-icon>
+                <div>
+                  <strong>{{ t('profileSupabaseSetupTitle') }}</strong>
+                  <span>{{ t('profileSupabaseNotConfigured') }}</span>
+                </div>
+              </div>
+            }
+
             <section class="auth-grid">
               <mat-card class="auth-card" appearance="outlined">
                 <mat-card-header>
@@ -821,9 +902,15 @@
                       (keyup.enter)="profileStore.login()"
                     />
                   </mat-form-field>
-                  <button mat-flat-button color="primary" type="button" (click)="profileStore.login()">
-                    <mat-icon>lock</mat-icon>
-                    {{ t('signIn') }}
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    [disabled]="profileStore.loading() || !profileStore.backendConfigured()"
+                    (click)="profileStore.login()"
+                  >
+                    <mat-icon>{{ profileStore.loading() ? 'hourglass_top' : 'lock' }}</mat-icon>
+                    {{ profileStore.loading() ? t('loading') : t('signIn') }}
                   </button>
                 </mat-card-content>
               </mat-card>
@@ -874,13 +961,26 @@
                       (keyup.enter)="profileStore.register()"
                     />
                   </mat-form-field>
-                  <button mat-flat-button color="primary" type="button" (click)="profileStore.register()">
-                    <mat-icon>person_add</mat-icon>
-                    {{ t('signUp') }}
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    [disabled]="profileStore.loading() || !profileStore.backendConfigured()"
+                    (click)="profileStore.register()"
+                  >
+                    <mat-icon>{{ profileStore.loading() ? 'hourglass_top' : 'person_add' }}</mat-icon>
+                    {{ profileStore.loading() ? t('loading') : t('signUp') }}
                   </button>
                 </mat-card-content>
               </mat-card>
             </section>
+
+            @if (profileStore.messageKey()) {
+              <div class="account-success">
+                <mat-icon>mark_email_read</mat-icon>
+                <span>{{ t(profileStore.messageKey()!) }}</span>
+              </div>
+            }
 
             @if (profileStore.errorKey()) {
               <div class="account-error">

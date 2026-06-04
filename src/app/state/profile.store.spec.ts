@@ -1,104 +1,124 @@
 import { TestBed } from '@angular/core/testing';
+import { User } from '@supabase/supabase-js';
+import { SupabaseAuthService } from '../supabase-auth.service';
 import { ProfileStore } from './profile.store';
 
+const supabaseUser = {
+  id: 'user-1',
+  email: 'andrei@example.com',
+  created_at: '2026-06-04T00:00:00.000Z',
+  last_sign_in_at: '2026-06-04T01:00:00.000Z',
+  user_metadata: { username: 'Andrei' },
+} as unknown as User;
+
 describe('ProfileStore', () => {
+  let auth: {
+    isConfigured: boolean;
+    getSession: ReturnType<typeof vi.fn>;
+    onAuthStateChange: ReturnType<typeof vi.fn>;
+    signUp: ReturnType<typeof vi.fn>;
+    signIn: ReturnType<typeof vi.fn>;
+    signOut: ReturnType<typeof vi.fn>;
+  };
+
   beforeEach(() => {
-    localStorage.clear();
-    TestBed.configureTestingModule({});
+    auth = {
+      isConfigured: true,
+      getSession: vi.fn().mockResolvedValue(null),
+      onAuthStateChange: vi.fn(),
+      signUp: vi.fn().mockResolvedValue(supabaseUser),
+      signIn: vi.fn().mockResolvedValue(supabaseUser),
+      signOut: vi.fn().mockResolvedValue(undefined),
+    };
+
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseAuthService, useValue: auth }],
+    });
   });
 
-  it('registers a local profile and stores it as authenticated', () => {
+  it('hydrates a Supabase session', async () => {
+    auth.getSession.mockResolvedValue({ user: supabaseUser });
+    const store = TestBed.inject(ProfileStore);
+
+    await store.hydrate();
+
+    expect(store.backendConfigured()).toBe(true);
+    expect(store.user()).toEqual(
+      expect.objectContaining({
+        id: 'user-1',
+        username: 'Andrei',
+        email: 'andrei@example.com',
+      }),
+    );
+    expect(store.initials()).toBe('A');
+  });
+
+  it('registers through Supabase Auth', async () => {
     const store = TestBed.inject(ProfileStore);
 
     store.setRegisterUsername('Andrei');
     store.setRegisterEmail('andrei@example.com');
     store.setRegisterPassword('secret');
     store.setRegisterConfirmPassword('secret');
-    store.register();
+    await store.register();
 
+    expect(auth.signUp).toHaveBeenCalledWith('andrei@example.com', 'secret', 'Andrei');
     expect(store.isAuthenticated()).toBe(true);
-    expect(store.user()).toEqual(
-      expect.objectContaining({
-        username: 'Andrei',
-        email: 'andrei@example.com',
-      }),
-    );
-    expect(store.initials()).toBe('A');
-    expect(JSON.parse(localStorage.getItem('poly-roly-profile') || '{}')).toEqual(
-      expect.objectContaining({
-        authenticated: true,
-      }),
-    );
+    expect(store.errorKey()).toBeNull();
   });
 
-  it('shows a validation error when register passwords do not match', () => {
+  it('asks for email confirmation when sign-up creates no session', async () => {
+    auth.signUp.mockResolvedValue(null);
+    const store = TestBed.inject(ProfileStore);
+
+    store.setRegisterUsername('Andrei');
+    store.setRegisterEmail('andrei@example.com');
+    store.setRegisterPassword('secret');
+    store.setRegisterConfirmPassword('secret');
+    await store.register();
+
+    expect(store.user()).toBeNull();
+    expect(store.messageKey()).toBe('profileCheckEmail');
+  });
+
+  it('shows a validation error when register passwords do not match', async () => {
     const store = TestBed.inject(ProfileStore);
 
     store.setRegisterUsername('Andrei');
     store.setRegisterEmail('andrei@example.com');
     store.setRegisterPassword('secret');
     store.setRegisterConfirmPassword('wrong');
-    store.register();
+    await store.register();
 
-    expect(store.user()).toBeNull();
+    expect(auth.signUp).not.toHaveBeenCalled();
     expect(store.errorKey()).toBe('profileAuthErrorPasswordMatch');
   });
 
-  it('logs out without deleting the local profile and allows login again', () => {
+  it('logs in and logs out through Supabase Auth', async () => {
     const store = TestBed.inject(ProfileStore);
-
-    store.setRegisterUsername('Andrei');
-    store.setRegisterEmail('andrei@example.com');
-    store.setRegisterPassword('secret');
-    store.setRegisterConfirmPassword('secret');
-    store.register();
-    store.logout();
-
-    expect(store.isAuthenticated()).toBe(false);
-    expect(JSON.parse(localStorage.getItem('poly-roly-profile') || '{}')).toEqual(
-      expect.objectContaining({
-        authenticated: false,
-      }),
-    );
 
     store.setLoginEmail('andrei@example.com');
     store.setLoginPassword('secret');
-    store.login();
+    await store.login();
 
+    expect(auth.signIn).toHaveBeenCalledWith('andrei@example.com', 'secret');
     expect(store.isAuthenticated()).toBe(true);
-    expect(store.errorKey()).toBeNull();
+
+    await store.logout();
+
+    expect(auth.signOut).toHaveBeenCalled();
+    expect(store.isAuthenticated()).toBe(false);
   });
 
-  it('hydrates only an authenticated local profile', () => {
-    const savedUser = {
-      username: 'Demo User',
-      email: 'demo@example.com',
-      createdAt: '2026-05-27T00:00:00.000Z',
-      lastLoginAt: '2026-05-27T00:00:00.000Z',
-    };
-
-    localStorage.setItem(
-      'poly-roly-profile',
-      JSON.stringify({
-        user: savedUser,
-        authenticated: false,
-      }),
-    );
-
+  it('does not submit auth forms until Supabase is configured', async () => {
+    auth.isConfigured = false;
     const store = TestBed.inject(ProfileStore);
-    store.hydrate();
 
-    expect(store.user()).toBeNull();
+    store.setLoginEmail('andrei@example.com');
+    store.setLoginPassword('secret');
+    await store.login();
 
-    localStorage.setItem(
-      'poly-roly-profile',
-      JSON.stringify({
-        user: savedUser,
-        authenticated: true,
-      }),
-    );
-    store.hydrate();
-
-    expect(store.user()).toEqual(savedUser);
+    expect(auth.signIn).not.toHaveBeenCalled();
+    expect(store.errorKey()).toBe('profileSupabaseNotConfigured');
   });
 });

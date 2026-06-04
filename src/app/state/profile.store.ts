@@ -1,12 +1,20 @@
-import { computed } from '@angular/core';
+import { computed, inject } from '@angular/core';
+import { User } from '@supabase/supabase-js';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+import { SupabaseAuthService } from '../supabase-auth.service';
 
 export type ProfileErrorKey =
-  | 'profileAuthErrorEmailMismatch'
+  | 'profileAuthErrorCredentials'
+  | 'profileAuthErrorGeneric'
+  | 'profileAuthErrorPasswordLength'
   | 'profileAuthErrorPasswordMatch'
-  | 'profileAuthErrorRequired';
+  | 'profileAuthErrorRequired'
+  | 'profileSupabaseNotConfigured';
+
+export type ProfileMessageKey = 'profileCheckEmail';
 
 export type ProfileUser = {
+  id: string;
   username: string;
   email: string;
   createdAt: string;
@@ -21,15 +29,11 @@ type ProfileState = {
   registerEmail: string;
   registerPassword: string;
   registerConfirmPassword: string;
+  loading: boolean;
+  backendConfigured: boolean;
   errorKey: ProfileErrorKey | null;
+  messageKey: ProfileMessageKey | null;
 };
-
-type ProfileStorageValue = {
-  user: ProfileUser;
-  authenticated: boolean;
-};
-
-const storageKey = 'poly-roly-profile';
 
 const initialState: ProfileState = {
   user: null,
@@ -39,7 +43,10 @@ const initialState: ProfileState = {
   registerEmail: '',
   registerPassword: '',
   registerConfirmPassword: '',
+  loading: false,
+  backendConfigured: false,
   errorKey: null,
+  messageKey: null,
 };
 
 export const ProfileStore = signalStore(
@@ -49,51 +56,68 @@ export const ProfileStore = signalStore(
     isAuthenticated: computed(() => user() !== null),
     initials: computed(() => createInitials(user())),
   })),
-  withMethods((store) => ({
-    hydrate(): void {
-      const savedProfile = readSavedProfile();
+  withMethods((store, auth = inject(SupabaseAuthService)) => ({
+    async hydrate(): Promise<void> {
+      patchState(store, { backendConfigured: auth.isConfigured });
 
-      if (savedProfile?.authenticated) {
-        patchState(store, {
-          user: savedProfile.user,
-          loginEmail: savedProfile.user.email,
-          errorKey: null,
-        });
+      if (!auth.isConfigured) {
+        return;
       }
+
+      try {
+        const session = await auth.getSession();
+        patchState(store, { user: session?.user ? mapUser(session.user) : null });
+      } catch {
+        patchState(store, { errorKey: 'profileAuthErrorGeneric' });
+      }
+
+      auth.onAuthStateChange((_event, user) => {
+        patchState(store, { user: user ? mapUser(user) : null });
+      });
     },
 
     setLoginEmail(loginEmail: string): void {
-      patchState(store, { loginEmail, errorKey: null });
+      patchState(store, { loginEmail, errorKey: null, messageKey: null });
     },
 
     setLoginPassword(loginPassword: string): void {
-      patchState(store, { loginPassword, errorKey: null });
+      patchState(store, { loginPassword, errorKey: null, messageKey: null });
     },
 
     setRegisterUsername(registerUsername: string): void {
-      patchState(store, { registerUsername, errorKey: null });
+      patchState(store, { registerUsername, errorKey: null, messageKey: null });
     },
 
     setRegisterEmail(registerEmail: string): void {
-      patchState(store, { registerEmail, errorKey: null });
+      patchState(store, { registerEmail, errorKey: null, messageKey: null });
     },
 
     setRegisterPassword(registerPassword: string): void {
-      patchState(store, { registerPassword, errorKey: null });
+      patchState(store, { registerPassword, errorKey: null, messageKey: null });
     },
 
     setRegisterConfirmPassword(registerConfirmPassword: string): void {
-      patchState(store, { registerConfirmPassword, errorKey: null });
+      patchState(store, { registerConfirmPassword, errorKey: null, messageKey: null });
     },
 
-    register(): void {
+    async register(): Promise<void> {
       const username = store.registerUsername().trim();
       const email = store.registerEmail().trim();
       const password = store.registerPassword();
       const confirmPassword = store.registerConfirmPassword();
 
+      if (!auth.isConfigured) {
+        patchState(store, { errorKey: 'profileSupabaseNotConfigured' });
+        return;
+      }
+
       if (!username || !isEmail(email) || !password || !confirmPassword) {
         patchState(store, { errorKey: 'profileAuthErrorRequired' });
+        return;
+      }
+
+      if (password.length < 6) {
+        patchState(store, { errorKey: 'profileAuthErrorPasswordLength' });
         return;
       }
 
@@ -102,68 +126,79 @@ export const ProfileStore = signalStore(
         return;
       }
 
-      const now = new Date().toISOString();
-      const user: ProfileUser = {
-        username,
-        email,
-        createdAt: now,
-        lastLoginAt: now,
-      };
+      patchState(store, { loading: true, errorKey: null, messageKey: null });
 
-      saveProfile(user, true);
-      patchState(store, {
-        user,
-        loginEmail: email,
-        loginPassword: '',
-        registerPassword: '',
-        registerConfirmPassword: '',
-        errorKey: null,
-      });
+      try {
+        const user = await auth.signUp(email, password, username);
+        patchState(store, {
+          user: user ? mapUser(user) : null,
+          loginEmail: email,
+          loginPassword: '',
+          registerPassword: '',
+          registerConfirmPassword: '',
+          messageKey: user ? null : 'profileCheckEmail',
+        });
+      } catch {
+        patchState(store, { errorKey: 'profileAuthErrorGeneric' });
+      } finally {
+        patchState(store, { loading: false });
+      }
     },
 
-    login(): void {
+    async login(): Promise<void> {
       const email = store.loginEmail().trim();
       const password = store.loginPassword();
-      const savedUser = readSavedProfile()?.user;
+
+      if (!auth.isConfigured) {
+        patchState(store, { errorKey: 'profileSupabaseNotConfigured' });
+        return;
+      }
 
       if (!isEmail(email) || !password) {
         patchState(store, { errorKey: 'profileAuthErrorRequired' });
         return;
       }
 
-      if (!savedUser || savedUser.email.toLowerCase() !== email.toLowerCase()) {
-        patchState(store, { errorKey: 'profileAuthErrorEmailMismatch' });
+      patchState(store, { loading: true, errorKey: null, messageKey: null });
+
+      try {
+        const user = await auth.signIn(email, password);
+        patchState(store, { user: mapUser(user), loginPassword: '' });
+      } catch {
+        patchState(store, { errorKey: 'profileAuthErrorCredentials' });
+      } finally {
+        patchState(store, { loading: false });
+      }
+    },
+
+    async logout(): Promise<void> {
+      if (!auth.isConfigured) {
         return;
       }
 
-      const user = {
-        ...savedUser,
-        lastLoginAt: new Date().toISOString(),
-      };
+      patchState(store, { loading: true, errorKey: null, messageKey: null });
 
-      saveProfile(user, true);
-      patchState(store, {
-        user,
-        loginPassword: '',
-        errorKey: null,
-      });
-    },
-
-    logout(): void {
-      const user = store.user();
-
-      if (user) {
-        saveProfile(user, false);
+      try {
+        await auth.signOut();
+        patchState(store, { user: null, loginPassword: '' });
+      } catch {
+        patchState(store, { errorKey: 'profileAuthErrorGeneric' });
+      } finally {
+        patchState(store, { loading: false });
       }
-
-      patchState(store, {
-        user: null,
-        loginPassword: '',
-        errorKey: null,
-      });
     },
   })),
 );
+
+function mapUser(user: User): ProfileUser {
+  return {
+    id: user.id,
+    username: String(user.user_metadata?.['username'] || user.email?.split('@')[0] || 'User'),
+    email: user.email ?? '',
+    createdAt: user.created_at,
+    lastLoginAt: user.last_sign_in_at ?? user.created_at,
+  };
+}
 
 function createInitials(user: ProfileUser | null): string {
   if (!user) {
@@ -182,51 +217,4 @@ function createInitials(user: ProfileUser | null): string {
 
 function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function readSavedProfile(): ProfileStorageValue | null {
-  const storage = getStorage();
-
-  if (!storage) {
-    return null;
-  }
-
-  try {
-    const rawProfile = storage.getItem(storageKey);
-
-    if (!rawProfile) {
-      return null;
-    }
-
-    const parsedProfile = JSON.parse(rawProfile) as ProfileStorageValue | ProfileUser;
-
-    if ('user' in parsedProfile) {
-      return parsedProfile;
-    }
-
-    return {
-      user: parsedProfile,
-      authenticated: true,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function saveProfile(user: ProfileUser, authenticated: boolean): void {
-  const storage = getStorage();
-
-  if (!storage) {
-    return;
-  }
-
-  storage.setItem(storageKey, JSON.stringify({ user, authenticated }));
-}
-
-function getStorage(): Storage | null {
-  try {
-    return typeof localStorage === 'undefined' ? null : localStorage;
-  } catch {
-    return null;
-  }
 }

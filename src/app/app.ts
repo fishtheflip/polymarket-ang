@@ -19,6 +19,7 @@ import { I18nService, Language } from './i18n.service';
 import { AccountStore } from './state/account.store';
 import { MarketStore } from './state/market.store';
 import { ProfileStore } from './state/profile.store';
+import { SavedTradesStore } from './state/saved-trades.store';
 import { WhaleStore } from './state/whale.store';
 
 type ThemeMode = 'light' | 'dark';
@@ -73,6 +74,7 @@ export class App implements OnInit {
   protected readonly accountStore = inject(AccountStore);
   protected readonly marketStore = inject(MarketStore);
   protected readonly profileStore = inject(ProfileStore);
+  protected readonly savedTradesStore = inject(SavedTradesStore);
   protected readonly whaleStore = inject(WhaleStore);
   protected readonly selectedTabIndex = signal(0);
 
@@ -106,6 +108,7 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.profileStore.hydrate();
+    this.savedTradesStore.initialize();
     void this.marketStore.loadMarkets();
     void this.whaleStore.loadTrades();
   }

@@ -2,6 +2,26 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.12.
 
+## Supabase authentication
+
+Create a Supabase project, enable Email authentication, then create a local runtime config:
+
+```bash
+cp public/supabase-config.example.js public/supabase-config.js
+```
+
+Add the Project URL and publishable key to `public/supabase-config.js`. This file is ignored by Git. Only use the publishable key in the Angular application. Never expose a Supabase secret or service-role key in frontend code.
+
+Apply the included migration through the Supabase SQL editor or CLI:
+
+```text
+supabase/migrations/20260604112000_create_profiles.sql
+```
+
+The migration creates `public.profiles`, enables Row Level Security, and automatically creates a profile row after registration.
+
+Apply `supabase/migrations/20260604123000_create_saved_trades.sql` to enable each authenticated user to save and delete up to 20 Polymarket links.
+
 ## Development server
 
 To start a local development server, run:
