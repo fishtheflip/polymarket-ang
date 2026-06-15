@@ -512,6 +512,7 @@ button.form-submit:not(.p-button-secondary),
 .market-list,
 .whale-feed,
 .prime-list,
+.linked-profiles-list,
 .saved-trades-list,
 .saved-trades-content,
 .auth-form,
@@ -553,6 +554,7 @@ button.form-submit:not(.p-button-secondary),
 .whale-move,
 .participant-row,
 .compact-trade-row,
+.linked-profile-row,
 .saved-trade-row,
 .prime-list-item {
   display: grid;
@@ -692,6 +694,10 @@ button.form-submit:not(.p-button-secondary),
   margin-left: auto;
 }
 
+.saved-toolbar {
+  margin-left: auto;
+}
+
 .compact-icon-button {
   display: inline-grid;
   width: 2rem;
@@ -761,6 +767,56 @@ button.form-submit:not(.p-button-secondary),
 
 .profile-settings-list {
   width: 100%;
+}
+
+.linked-profile-row {
+  border-bottom: 1px solid var(--app-border);
+  padding: 0.7rem 0;
+}
+
+.linked-profile-row:last-child {
+  border-bottom: 0;
+}
+
+.linked-profile-main,
+.linked-profile-actions {
+  display: flex;
+  align-items: center;
+}
+
+.linked-profile-main {
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.linked-profile-main img {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.linked-profile-main > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.linked-profile-main strong,
+.linked-profile-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linked-profile-main span {
+  color: var(--app-muted);
+  font-size: 0.78rem;
+}
+
+.linked-profile-actions {
+  justify-content: end;
+  gap: 0.5rem;
 }
 
 .saved-trade-row {
@@ -880,6 +936,7 @@ button.form-submit:not(.p-button-secondary),
   .whale-move,
   .participant-row,
   .compact-trade-row,
+  .linked-profile-row,
   .saved-trade-row,
   .prime-list-item {
     grid-template-columns: 1fr;
@@ -887,8 +944,10 @@ button.form-submit:not(.p-button-secondary),
   }
 
   .position-pnl,
-  .market-odds {
+  .market-odds,
+  .linked-profile-actions {
     justify-items: start;
+    justify-content: start;
     text-align: left;
   }
 }

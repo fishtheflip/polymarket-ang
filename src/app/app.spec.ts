@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
+import { LinkedPolymarketProfilesService } from './linked-polymarket-profiles.service';
 import { PolymarketAccountService, PolymarketTrade } from './polymarket-account.service';
 import { PolymarketMarketService } from './polymarket-market.service';
+import { SavedTradersService } from './saved-traders.service';
+import { SavedTradesService } from './saved-trades.service';
+import { SupabaseAuthService } from './supabase-auth.service';
 
 globalThis.ResizeObserver ??= class {
   observe(): void {}
@@ -63,6 +67,41 @@ describe('App', () => {
           provide: PolymarketMarketService,
           useValue: {
             getTopMarkets: () => Promise.resolve([]),
+          },
+        },
+        {
+          provide: LinkedPolymarketProfilesService,
+          useValue: {
+            getCurrent: () => Promise.resolve(null),
+            upsert: vi.fn(),
+            remove: vi.fn(),
+          },
+        },
+        {
+          provide: SavedTradersService,
+          useValue: {
+            list: () => Promise.resolve([]),
+            create: vi.fn(),
+            remove: vi.fn(),
+          },
+        },
+        {
+          provide: SavedTradesService,
+          useValue: {
+            list: () => Promise.resolve([]),
+            create: vi.fn(),
+            remove: vi.fn(),
+          },
+        },
+        {
+          provide: SupabaseAuthService,
+          useValue: {
+            isConfigured: false,
+            getSession: vi.fn(),
+            onAuthStateChange: vi.fn(),
+            signUp: vi.fn(),
+            signIn: vi.fn(),
+            signOut: vi.fn(),
           },
         },
       ],

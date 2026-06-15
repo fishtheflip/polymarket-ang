@@ -12,12 +12,15 @@ import {
 } from './polymarket-account.service';
 import { I18nService, Language } from './i18n.service';
 import { AccountStore } from './state/account.store';
+import { LinkedPolymarketProfilesStore } from './state/linked-polymarket-profiles.store';
 import { MarketStore } from './state/market.store';
 import { ProfileStore } from './state/profile.store';
+import { SavedTradersStore } from './state/saved-traders.store';
 import { SavedTradesStore } from './state/saved-trades.store';
 import { WhaleStore } from './state/whale.store';
 
 type ThemeMode = 'light' | 'dark';
+type SavedProfilePanel = 'traders' | 'trades';
 
 type DonutSegment = {
   label: string;
@@ -55,11 +58,14 @@ export class App implements OnInit {
   protected readonly chartTooltip = signal<ChartTooltip | null>(null);
   protected readonly themeMode = signal<ThemeMode>('dark');
   protected readonly accountStore = inject(AccountStore);
+  protected readonly linkedProfilesStore = inject(LinkedPolymarketProfilesStore);
   protected readonly marketStore = inject(MarketStore);
   protected readonly profileStore = inject(ProfileStore);
+  protected readonly savedTradersStore = inject(SavedTradersStore);
   protected readonly savedTradesStore = inject(SavedTradesStore);
   protected readonly whaleStore = inject(WhaleStore);
   protected readonly selectedTabIndex = signal(0);
+  protected readonly savedProfilePanel = signal<SavedProfilePanel>('traders');
 
   protected readonly isDarkTheme = computed(() => this.themeMode() === 'dark');
   protected readonly currentPositionsChart = computed(() =>
@@ -93,6 +99,8 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.profileStore.hydrate();
+    this.linkedProfilesStore.initialize();
+    this.savedTradersStore.initialize();
     this.savedTradesStore.initialize();
     void this.marketStore.loadMarkets();
     void this.whaleStore.loadTrades();
@@ -140,6 +148,12 @@ export class App implements OnInit {
     }
 
     await this.accountStore.loadAccount();
+  }
+
+  protected async openLinkedProfile(address: string): Promise<void> {
+    this.accountStore.setAddress(address);
+    this.selectedTabIndex.set(0);
+    await this.loadAccount();
   }
 
   protected shortAddress(address: string | null): string {

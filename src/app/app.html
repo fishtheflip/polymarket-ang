@@ -853,16 +853,6 @@
 
         <p-tabpanel [value]="4">
           <section class="tab-panel profile-page">
-            <p-card styleClass="profile-shell-card">
-              <header class="panel-header">
-                <span class="profile-glow-avatar">
-                  {{ profileStore.initials() }}
-                </span>
-                <h2 class="panel-title">{{ t('profileShellTitle') }}</h2>
-                <p class="panel-subtitle">{{ t('profileShellSubtitle') }}</p>
-              </header>
-            </p-card>
-
             @if (profileStore.isAuthenticated()) {
               <section class="profile-dashboard">
                 <p-card styleClass="profile-card">
@@ -907,105 +897,287 @@
                   </div>
                 </p-card>
 
-                <p-card styleClass="auth-card">
+                <p-card styleClass="linked-profile-card">
                   <header class="panel-header">
-                    <h2 class="panel-title">{{ t('profileSettings') }}</h2>
-                    <p class="panel-subtitle">{{ t('profileSettingsSubtitle') }}</p>
-                  </header>
-                  <div class="panel-content">
-                    <div class="detail-list profile-settings-list">
-                      <div>
-                        <span>{{ t('profileDefaultTheme') }}</span>
-                        <strong>{{ isDarkTheme() ? t('darkTheme') : t('lightTheme') }}</strong>
-                      </div>
-                      <div>
-                        <span>{{ t('profileWhaleFilter') }}</span>
-                        <strong>$500 / 0.25</strong>
-                      </div>
-                      <div>
-                        <span>{{ t('profileDataMode') }}</span>
-                        <strong>{{ t('realTime') }}</strong>
-                      </div>
+                    <div>
+                      <h2 class="panel-title">{{ t('linkedProfiles') }}</h2>
+                      <p class="panel-subtitle">{{ t('linkedProfilesSubtitle') }}</p>
                     </div>
+                  </header>
+                  <div class="panel-content saved-trades-content">
+                    @if (!linkedProfilesStore.profile()) {
+                      <div
+                        class="saved-trade-form rounded-border border border-surface bg-surface-50/50 p-4 dark:bg-surface-900/40"
+                      >
+                        <label class="prime-field">
+                          <span class="field-label">{{ t('linkedProfileAddress') }}</span>
+                          <input
+                            pInputText
+                            placeholder="0x... / https://polymarket.com/profile/0x..."
+                            spellcheck="false"
+                            [value]="linkedProfilesStore.addressInput()"
+                            (input)="linkedProfilesStore.setAddressInput($any($event.target).value)"
+                            (keyup.enter)="linkedProfilesStore.add()"
+                          />
+                          <small class="field-hint">{{ t('linkedProfileHint') }}</small>
+                        </label>
+
+                        <p-button
+                          class="form-submit"
+                          type="button"
+                          icon="pi pi-user-plus"
+                          [label]="t('addLinkedProfile')"
+                          [loading]="linkedProfilesStore.loading()"
+                          (onClick)="linkedProfilesStore.add()"
+                        />
+                      </div>
+                    }
+
+                    @if (linkedProfilesStore.errorKey()) {
+                      <div class="account-error">
+                        <i class="pi pi-exclamation-circle"></i>
+                        <span>{{ t(linkedProfilesStore.errorKey()!) }}</span>
+                      </div>
+                    }
+
+                    @if (linkedProfilesStore.profile(); as profile) {
+                      <article class="linked-profile-row">
+                        <div class="linked-profile-main">
+                          @if (profile.profileImage) {
+                            <img [src]="profile.profileImage" alt="" />
+                          } @else {
+                            <span class="profile-glow-avatar">
+                              {{ (profile.name || profile.pseudonym || profile.address).slice(0, 1) }}
+                            </span>
+                          }
+                          <div>
+                            <strong>{{
+                              profile.name || profile.pseudonym || shortAddress(profile.address)
+                            }}</strong>
+                            <span>{{ shortAddress(profile.proxyWallet || profile.address) }}</span>
+                          </div>
+                        </div>
+                        <div class="linked-profile-actions">
+                          <button
+                            pButton
+                            type="button"
+                            severity="secondary"
+                            variant="outlined"
+                            (click)="openLinkedProfile(profile.proxyWallet || profile.address)"
+                          >
+                            <i class="pi pi-chart-line"></i>
+                            {{ t('openAnalytics') }}
+                          </button>
+                          <button
+                            pButton
+                            type="button"
+                            severity="secondary"
+                            variant="outlined"
+                            [disabled]="linkedProfilesStore.loading()"
+                            (click)="linkedProfilesStore.remove(profile.id)"
+                          >
+                            <i class="pi pi-times"></i>
+                            {{ t('deleteLinkedProfile') }}
+                          </button>
+                        </div>
+                      </article>
+                    } @else if (!linkedProfilesStore.loading()) {
+                      <p class="empty-state">{{ t('linkedProfilesEmpty') }}</p>
+                    }
                   </div>
                 </p-card>
 
                 <p-card styleClass="saved-trades-card">
                   <header class="panel-header">
-                    <h2 class="panel-title">{{ t('savedTrades') }}</h2>
+                    <h2 class="panel-title">{{ t('savedHub') }}</h2>
                     <p class="panel-subtitle">
-                      {{ t('savedTradesSubtitle') }} · {{ savedTradesStore.trades().length }}/20
+                      {{ t('savedHubSubtitle') }} · {{ savedTradersStore.traders().length }}/20 ·
+                      {{ savedTradesStore.trades().length }}/20
                     </p>
+                    <div
+                      class="feed-mode-toggle saved-toolbar"
+                      role="group"
+                      [attr.aria-label]="t('savedHub')"
+                    >
+                      <button
+                        type="button"
+                        [class.active-feed-mode]="savedProfilePanel() === 'traders'"
+                        (click)="savedProfilePanel.set('traders')"
+                      >
+                        {{ t('savedTradersTab') }}
+                      </button>
+                      <button
+                        type="button"
+                        [class.active-feed-mode]="savedProfilePanel() === 'trades'"
+                        (click)="savedProfilePanel.set('trades')"
+                      >
+                        {{ t('savedTradesTab') }}
+                      </button>
+                    </div>
                   </header>
                   <div class="panel-content saved-trades-content">
-                    <div
-                      class="saved-trade-form rounded-border border border-surface bg-surface-50/50 p-4 dark:bg-surface-900/40"
-                    >
-                      <label class="prime-field">
-                        <span class="field-label">{{ t('savedTradeLink') }}</span>
-                        <input
-                          pInputText
-                          type="url"
-                          placeholder="https://polymarket.com/event/..."
-                          [value]="savedTradesStore.linkInput()"
-                          (input)="savedTradesStore.setLinkInput($any($event.target).value)"
-                          (keyup.enter)="savedTradesStore.save()"
+                    @if (savedProfilePanel() === 'traders') {
+                      <div
+                        class="saved-trade-form rounded-border border border-surface bg-surface-50/50 p-4 dark:bg-surface-900/40"
+                      >
+                        <label class="prime-field">
+                          <span class="field-label">{{ t('savedTraderAddress') }}</span>
+                          <input
+                            pInputText
+                            placeholder="0x... / https://polymarket.com/profile/0x..."
+                            spellcheck="false"
+                            [value]="savedTradersStore.addressInput()"
+                            (input)="savedTradersStore.setAddressInput($any($event.target).value)"
+                            (keyup.enter)="savedTradersStore.save()"
+                          />
+                          <small class="field-hint"
+                            >{{ t('savedTradersRemaining') }}:
+                            {{ savedTradersStore.remainingSlots() }}</small
+                          >
+                        </label>
+
+                        <p-button
+                          class="form-submit"
+                          type="button"
+                          icon="pi pi-user-plus"
+                          [label]="t('saveTrader')"
+                          [loading]="savedTradersStore.loading()"
+                          [disabled]="savedTradersStore.isAtLimit()"
+                          (onClick)="savedTradersStore.save()"
                         />
-                        <small class="field-hint"
-                          >{{ t('savedTradesRemaining') }}:
-                          {{ savedTradesStore.remainingSlots() }}</small
-                        >
-                      </label>
-
-                      <p-button
-                        class="form-submit"
-                        type="button"
-                        icon="pi pi-bookmark"
-                        [label]="t('saveTrade')"
-                        [loading]="savedTradesStore.loading()"
-                        [disabled]="savedTradesStore.isAtLimit()"
-                        (onClick)="savedTradesStore.save()"
-                      />
-                    </div>
-
-                    @if (savedTradesStore.errorKey()) {
-                      <div class="account-error">
-                        <i class="pi pi-exclamation-circle"></i>
-                        <span>{{ t(savedTradesStore.errorKey()!) }}</span>
                       </div>
-                    }
 
-                    @if (savedTradesStore.trades().length) {
-                      <div class="saved-trades-list">
-                        @for (trade of savedTradesStore.trades(); track trade.id) {
-                          <article class="saved-trade-row">
-                            <div>
-                              <a
-                                class="market-link"
-                                [href]="trade.url"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                      @if (savedTradersStore.errorKey()) {
+                        <div class="account-error">
+                          <i class="pi pi-exclamation-circle"></i>
+                          <span>{{ t(savedTradersStore.errorKey()!) }}</span>
+                        </div>
+                      }
+
+                      @if (savedTradersStore.traders().length) {
+                        <div class="saved-trades-list">
+                          @for (trader of savedTradersStore.traders(); track trader.id) {
+                            <article class="linked-profile-row">
+                              <div class="linked-profile-main">
+                                @if (trader.profileImage) {
+                                  <img [src]="trader.profileImage" alt="" />
+                                } @else {
+                                  <span class="profile-glow-avatar">
+                                    {{
+                                      (trader.name || trader.pseudonym || trader.address).slice(
+                                        0,
+                                        1
+                                      )
+                                    }}
+                                  </span>
+                                }
+                                <div>
+                                  <strong>{{
+                                    trader.name || trader.pseudonym || shortAddress(trader.address)
+                                  }}</strong>
+                                  <span>{{ shortAddress(trader.address) }}</span>
+                                </div>
+                              </div>
+                              <div class="linked-profile-actions">
+                                <button
+                                  pButton
+                                  type="button"
+                                  severity="secondary"
+                                  variant="outlined"
+                                  (click)="openLinkedProfile(trader.address)"
+                                >
+                                  <i class="pi pi-chart-line"></i>
+                                  {{ t('openAnalytics') }}
+                                </button>
+                                <button
+                                  class="compact-icon-button"
+                                  type="button"
+                                  [disabled]="savedTradersStore.loading()"
+                                  [attr.aria-label]="
+                                    t('deleteSavedTrader') + ': ' + shortAddress(trader.address)
+                                  "
+                                  [attr.title]="t('deleteSavedTrader')"
+                                  (click)="savedTradersStore.remove(trader.id)"
+                                >
+                                  <i class="pi pi-trash"></i>
+                                </button>
+                              </div>
+                            </article>
+                          }
+                        </div>
+                      } @else if (!savedTradersStore.loading()) {
+                        <p class="empty-state">{{ t('savedTradersEmpty') }}</p>
+                      }
+                    } @else {
+                      <div
+                        class="saved-trade-form rounded-border border border-surface bg-surface-50/50 p-4 dark:bg-surface-900/40"
+                      >
+                        <label class="prime-field">
+                          <span class="field-label">{{ t('savedTradeLink') }}</span>
+                          <input
+                            pInputText
+                            type="url"
+                            placeholder="https://polymarket.com/event/..."
+                            [value]="savedTradesStore.linkInput()"
+                            (input)="savedTradesStore.setLinkInput($any($event.target).value)"
+                            (keyup.enter)="savedTradesStore.save()"
+                          />
+                          <small class="field-hint"
+                            >{{ t('savedTradesRemaining') }}:
+                            {{ savedTradesStore.remainingSlots() }}</small
+                          >
+                        </label>
+
+                        <p-button
+                          class="form-submit"
+                          type="button"
+                          icon="pi pi-bookmark"
+                          [label]="t('saveTrade')"
+                          [loading]="savedTradesStore.loading()"
+                          [disabled]="savedTradesStore.isAtLimit()"
+                          (onClick)="savedTradesStore.save()"
+                        />
+                      </div>
+
+                      @if (savedTradesStore.errorKey()) {
+                        <div class="account-error">
+                          <i class="pi pi-exclamation-circle"></i>
+                          <span>{{ t(savedTradesStore.errorKey()!) }}</span>
+                        </div>
+                      }
+
+                      @if (savedTradesStore.trades().length) {
+                        <div class="saved-trades-list">
+                          @for (trade of savedTradesStore.trades(); track trade.id) {
+                            <article class="saved-trade-row">
+                              <div>
+                                <a
+                                  class="market-link"
+                                  [href]="trade.url"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <strong>{{ trade.title }}</strong>
+                                  <i class="pi pi-external-link"></i>
+                                </a>
+                                <span>{{ formatDate(trade.createdAt) }}</span>
+                              </div>
+                              <button
+                                class="compact-icon-button"
+                                type="button"
+                                [disabled]="savedTradesStore.loading()"
+                                [attr.aria-label]="t('deleteSavedTrade') + ': ' + trade.title"
+                                [attr.title]="t('deleteSavedTrade')"
+                                (click)="savedTradesStore.remove(trade.id)"
                               >
-                                <strong>{{ trade.title }}</strong>
-                                <i class="pi pi-external-link"></i>
-                              </a>
-                              <span>{{ formatDate(trade.createdAt) }}</span>
-                            </div>
-                            <button
-                              class="compact-icon-button"
-                              type="button"
-                              [disabled]="savedTradesStore.loading()"
-                              [attr.aria-label]="t('deleteSavedTrade') + ': ' + trade.title"
-                              [attr.title]="t('deleteSavedTrade')"
-                              (click)="savedTradesStore.remove(trade.id)"
-                            >
-                              <i class="pi pi-trash"></i>
-                            </button>
-                          </article>
-                        }
-                      </div>
-                    } @else if (!savedTradesStore.loading()) {
-                      <p class="empty-state">{{ t('savedTradesEmpty') }}</p>
+                                <i class="pi pi-trash"></i>
+                              </button>
+                            </article>
+                          }
+                        </div>
+                      } @else if (!savedTradesStore.loading()) {
+                        <p class="empty-state">{{ t('savedTradesEmpty') }}</p>
+                      }
                     }
                   </div>
                 </p-card>

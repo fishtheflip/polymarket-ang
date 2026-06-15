@@ -26,6 +26,14 @@ The migration creates `public.profiles`, enables Row Level Security, and automat
 
 Apply `supabase/migrations/20260604123000_create_saved_trades.sql` to enable each authenticated user to save and delete up to 20 Polymarket links.
 
+Apply `supabase/migrations/20260605210000_create_polymarket_profiles.sql` to enable each authenticated user to connect one personal Polymarket profile to their Poly Roly account.
+
+Apply `supabase/migrations/20260606190000_create_saved_traders.sql` to enable each authenticated user to follow up to 20 Polymarket trader addresses.
+
+## Deployment
+
+Pushes to `master` deploy the application to [GitHub Pages](https://fishtheflip.github.io/polymarket-ang/). Configure the `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` repository secrets before deploying.
+
 ## Development server
 
 To start a local development server, run:
