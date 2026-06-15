@@ -43,7 +43,7 @@ jobs:
 
       - name: Set GitHub Pages base path
         run: |
-          node -e "const fs = require('fs'); const path = 'dist/poly-roly/browser/index.html'; fs.writeFileSync(path, fs.readFileSync(path, 'utf8').replace('<base href=\"/\" />', '<base href=\"/polymarket-ang/\" />'))"
+          node -e "const fs = require('fs'); const path = 'dist/poly-roly/browser/index.html'; const html = fs.readFileSync(path, 'utf8').replace('<base href=\"/\">', '<base href=\"/polymarket-ang/\">'); if (!html.includes('<base href=\"/polymarket-ang/\">')) throw new Error('Could not set GitHub Pages base path'); fs.writeFileSync(path, html)"
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
